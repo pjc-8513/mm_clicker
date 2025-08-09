@@ -78,7 +78,7 @@ const SPELL_DEFS = {
 
 const CLASS_STARTING_SPELLS = {
   knight: [],
-  paladin: ["heal"],
+  paladin: ["heal", "shield"],
   archer: ["fireBolt"],
   cleric: ["heal"],
   sorcerer: ["fireBolt"],
@@ -105,6 +105,209 @@ const state = {
   enemyAttackTimerId: null,
   autoAttackTimerId: null,
   guaranteedCrits: 0, // Tracks remaining guaranteed critical hits from Bless
+};
+
+// Area Definition System
+const AREAS = {
+  newSorpigal: {
+    id: "newSorpigal",
+    name: "New Sorpigal Outskirts",
+    description: "The familiar countryside around New Sorpigal, perfect for beginning adventurers.",
+    maxWaves: 10,
+    baseLevel: 1,
+    enemies: ["goblin", "bandit", "wolf", "skeleton"],
+    boss: null, // No boss for starting area
+    unlocks: ["emeraldIsland", "castleIronFirst"],
+    rewards: {
+      goldMultiplier: 1.0,
+      xpMultiplier: 1.0
+    }
+  },
+  emeraldIsland: {
+    id: "emeraldIsland",
+    name: "Emerald Island",
+    description: "A mysterious island shrouded in green mist, home to undead creatures.",
+    maxWaves: 12,
+    baseLevel: 8,
+    enemies: ["skeleton", "zombieWarrior", "ghostSpirit", "banshee"],
+    boss: "skeletonLord",
+    unlocks: ["sweetWater"],
+    requirements: ["newSorpigal"], // Must complete this area first
+    rewards: {
+      goldMultiplier: 1.2,
+      xpMultiplier: 1.1
+    }
+  },
+  castleIronFirst: {
+    id: "castleIronFirst",
+    name: "Castle Ironfist Dungeons",
+    description: "Ancient dungeons beneath the great castle, filled with dangerous creatures.",
+    maxWaves: 15,
+    baseLevel: 12,
+    enemies: ["dungeonRat", "goblinShaman", "orc", "minotaur"],
+    boss: "ironGolem",
+    unlocks: ["freeHaven"],
+    requirements: ["newSorpigal"],
+    rewards: {
+      goldMultiplier: 1.3,
+      xpMultiplier: 1.2
+    }
+  },
+  sweetWater: {
+    id: "sweetWater",
+    name: "Sweet Water",
+    description: "A coastal town plagued by sea monsters and pirates.",
+    maxWaves: 18,
+    baseLevel: 20,
+    enemies: ["seaDevil", "pirateRaider", "waterElemental", "kraken"],
+    boss: "pirateKing",
+    unlocks: ["bootBay"],
+    requirements: ["emeraldIsland"],
+    rewards: {
+      goldMultiplier: 1.5,
+      xpMultiplier: 1.3
+    }
+  }
+};
+
+// Enemy Template System
+const ENEMY_TEMPLATES = {
+  // Basic Enemies
+  goblin: {
+    id: "goblin",
+    baseName: "Goblin",
+    type: "humanoid",
+    tier: 1,
+    hpFormula: (level) => Math.floor(40 + level * 25 + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(3 + level * 1.2),
+    goldFormula: (level) => Math.floor(5 + level * 2),
+    xpFormula: (level) => Math.floor(15 + level * 8),
+    variants: ["Scout", "Warrior", "Chieftain"]
+  },
+  
+  bandit: {
+    id: "bandit",
+    baseName: "Bandit",
+    type: "humanoid",
+    tier: 1,
+    hpFormula: (level) => Math.floor(45 + level * 28 + Math.pow(level, 1.25) * 6),
+    attackFormula: (level) => Math.floor(4 + level * 1.3),
+    goldFormula: (level) => Math.floor(8 + level * 3),
+    xpFormula: (level) => Math.floor(18 + level * 9),
+    variants: ["Thief", "Outlaw", "Captain"]
+  },
+  
+  wolf: {
+    id: "wolf",
+    baseName: "Wolf",
+    type: "beast",
+    tier: 1,
+    hpFormula: (level) => Math.floor(35 + level * 22 + Math.pow(level, 1.15) * 4),
+    attackFormula: (level) => Math.floor(5 + level * 1.4),
+    goldFormula: (level) => Math.floor(4 + level * 1.5),
+    xpFormula: (level) => Math.floor(12 + level * 7),
+    variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+  
+  skeleton: {
+    id: "skeleton",
+    baseName: "Skeleton",
+    type: "undead",
+    tier: 2,
+    hpFormula: (level) => Math.floor(50 + level * 30 + Math.pow(level, 1.3) * 7),
+    attackFormula: (level) => Math.floor(4 + level * 1.5),
+    goldFormula: (level) => Math.floor(6 + level * 2.5),
+    xpFormula: (level) => Math.floor(20 + level * 10),
+    variants: ["Warrior", "Archer", "Mage"]
+  },
+  
+  // Intermediate Enemies
+  zombieWarrior: {
+    id: "zombieWarrior",
+    baseName: "Zombie Warrior",
+    type: "undead",
+    tier: 2,
+    hpFormula: (level) => Math.floor(80 + level * 45 + Math.pow(level, 1.35) * 10),
+    attackFormula: (level) => Math.floor(6 + level * 1.8),
+    goldFormula: (level) => Math.floor(12 + level * 4),
+    xpFormula: (level) => Math.floor(25 + level * 12),
+    variants: ["Corrupted", "Elite", "Champion"]
+  },
+  
+  ghostSpirit: {
+    id: "ghostSpirit",
+    baseName: "Ghost",
+    type: "spirit",
+    tier: 2,
+    hpFormula: (level) => Math.floor(60 + level * 35 + Math.pow(level, 1.4) * 8),
+    attackFormula: (level) => Math.floor(7 + level * 2.0),
+    goldFormula: (level) => Math.floor(10 + level * 3.5),
+    xpFormula: (level) => Math.floor(22 + level * 11),
+    variants: ["Wraith", "Phantom", "Specter"]
+  },
+  
+  orc: {
+    id: "orc",
+    baseName: "Orc",
+    type: "humanoid",
+    tier: 2,
+    hpFormula: (level) => Math.floor(90 + level * 50 + Math.pow(level, 1.25) * 12),
+    attackFormula: (level) => Math.floor(8 + level * 2.2),
+    goldFormula: (level) => Math.floor(15 + level * 5),
+    xpFormula: (level) => Math.floor(28 + level * 14),
+    variants: ["Berserker", "Shaman", "Warlord"]
+  },
+  
+  // Advanced Enemies
+  seaDevil: {
+    id: "seaDevil",
+    baseName: "Sea Devil",
+    type: "demon",
+    tier: 3,
+    hpFormula: (level) => Math.floor(120 + level * 65 + Math.pow(level, 1.5) * 15),
+    attackFormula: (level) => Math.floor(12 + level * 2.8),
+    goldFormula: (level) => Math.floor(25 + level * 8),
+    xpFormula: (level) => Math.floor(40 + level * 18),
+    variants: ["Leviathan", "Kraken Spawn", "Abyssal"]
+  },
+  
+  // Boss Enemies
+  skeletonLord: {
+    id: "skeletonLord",
+    baseName: "Skeleton Lord",
+    type: "undead",
+    tier: "boss",
+    isBoss: true,
+    hpFormula: (level) => Math.floor(300 + level * 150 + Math.pow(level, 1.6) * 50),
+    attackFormula: (level) => Math.floor(15 + level * 4.0),
+    goldFormula: (level) => Math.floor(100 + level * 25),
+    xpFormula: (level) => Math.floor(150 + level * 50),
+    variants: ["Ancient", "Lich King", "Death Knight"]
+  }
+};
+
+// Wave Configuration System
+const WAVE_CONFIGS = {
+  standard: {
+    enemyCount: 4,
+    levelProgression: (waveNumber, baseLevel) => baseLevel + waveNumber - 1,
+    enemySelection: "random", // "random", "sequential", "weighted"
+    bossWave: null
+  },
+  
+  boss: {
+    enemyCount: 1,
+    levelProgression: (waveNumber, baseLevel) => baseLevel + waveNumber + 2,
+    enemySelection: "boss",
+    bossWave: true
+  },
+  
+  horde: {
+    enemyCount: 6,
+    levelProgression: (waveNumber, baseLevel) => Math.max(1, baseLevel + waveNumber - 2),
+    enemySelection: "weighted",
+    bossWave: null
+  }
 };
 
 // Character factory
@@ -326,10 +529,11 @@ function startGame() {
   creationScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
   renderPartyBar();
-  setupWave(1);
+  setupWaveNew(1);
   beginEnemyAttacks();
   beginAutoAttacks();
   selectCharacter(state.selectedIndex);
+  migrateToNewSystem();
   setupKeyboardControls();
 }
 
@@ -369,13 +573,108 @@ function updatePartyBars() {
 }
 
 // Wave / Multiple enemies
-function setupWave(number) {
-  waveNumberEl.textContent = String(number);
-  areaNameEl.textContent = "New Sorpigal Outskirts";
-  state.enemyLevel = number;
-  const enemies = Array.from({ length: 4 }).map((_, i) => generateEnemy(number + i));
-  state.enemies = enemies; // add to state dynamically
+function setupWaveNew(waveNumber, areaId = null) {
+  const currentAreaId = areaId || state.currentAreaId || "newSorpigal";
+  const waveData = setupWaveFromArea(currentAreaId, waveNumber);
+  
+  // Update UI elements
+  waveNumberEl.textContent = String(waveData.waveNumber);
+  areaNameEl.textContent = waveData.areaName;
+  
+  // Update state
+  state.enemyLevel = waveData.enemies[0]?.level || waveNumber;
+  state.enemies = waveData.enemies;
+  state.currentAreaId = currentAreaId;
+  state.currentWave = waveNumber;
+  
+  // Check for area completion
+  if (waveData.isFinalWave && waveData.hasBoss) {
+    state.isAreaFinalBoss = true;
+  }
+  
   renderEnemyList();
+  
+  return waveData;
+}
+
+// Enhanced wave setup using area system
+function setupWaveFromArea(areaId, waveNumber) {
+  const area = AREAS[areaId];
+  if (!area) {
+    console.error(`Area not found: ${areaId}`);
+    return setupWave(waveNumber); // Fallback to old system
+  }
+  
+  // Check if this is the final wave and has a boss
+  const isFinalWave = waveNumber >= area.maxWaves;
+  const hasBoss = area.boss && isFinalWave;
+  
+  // Determine wave configuration
+  let waveConfig = WAVE_CONFIGS.standard;
+  if (hasBoss) {
+    waveConfig = WAVE_CONFIGS.boss;
+  } else if (waveNumber % 5 === 0) { // Every 5th wave is a horde
+    waveConfig = WAVE_CONFIGS.horde;
+  }
+  
+  // Calculate enemy level
+  const enemyLevel = waveConfig.levelProgression(waveNumber, area.baseLevel);
+  
+  // Generate enemies
+  const enemies = [];
+  const enemyCount = waveConfig.enemyCount;
+  
+  if (hasBoss) {
+    // Generate boss enemy
+    enemies.push(generateEnemyFromTemplate(area.boss, enemyLevel + 3));
+  } else {
+    // Generate regular enemies
+    for (let i = 0; i < enemyCount; i++) {
+      let enemyTemplate;
+      
+      if (waveConfig.enemySelection === "random") {
+        enemyTemplate = area.enemies[Math.floor(Math.random() * area.enemies.length)];
+      } else if (waveConfig.enemySelection === "sequential") {
+        enemyTemplate = area.enemies[i % area.enemies.length];
+      } else if (waveConfig.enemySelection === "weighted") {
+        // Weighted selection (favor earlier enemies for easier waves)
+        const weights = area.enemies.map((_, idx) => Math.max(1, area.enemies.length - idx));
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        let random = Math.random() * totalWeight;
+        let selectedIdx = 0;
+        
+        for (let j = 0; j < weights.length; j++) {
+          random -= weights[j];
+          if (random <= 0) {
+            selectedIdx = j;
+            break;
+          }
+        }
+        enemyTemplate = area.enemies[selectedIdx];
+      }
+      
+      // Add some level variation for variety
+      const levelVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
+      const finalLevel = Math.max(1, enemyLevel + levelVariation);
+      
+      enemies.push(generateEnemyFromTemplate(enemyTemplate, finalLevel));
+    }
+  }
+  
+  // Apply area reward multipliers to enemies
+  enemies.forEach(enemy => {
+    enemy.rewardGold = Math.floor(enemy.rewardGold * area.rewards.goldMultiplier);
+    enemy.rewardXp = Math.floor(enemy.rewardXp * area.rewards.xpMultiplier);
+  });
+  
+  return {
+    areaId,
+    areaName: area.name,
+    waveNumber,
+    enemies,
+    isFinalWave,
+    hasBoss
+  };
 }
 
 function renderEnemyList() {
@@ -421,6 +720,44 @@ function generateEnemy(level) {
   const rewardGold = 6 * base + Math.floor(level * 2);
   const rewardXp = 20 + Math.floor(level * 10);
   return { name, maxHp, hp: maxHp, rewardGold, rewardXp };
+}
+
+// Generate enemy from template
+function generateEnemyFromTemplate(templateId, level, variantIndex = null) {
+  const template = ENEMY_TEMPLATES[templateId];
+  if (!template) {
+    console.error(`Enemy template not found: ${templateId}`);
+    return generateEnemy(level); // Fallback to old system
+  }
+  
+  // Calculate stats using formulas
+  const maxHp = template.hpFormula(level);
+  const attack = template.attackFormula(level);
+  const rewardGold = template.goldFormula(level);
+  const rewardXp = template.xpFormula(level);
+  
+  // Choose variant name
+  let name = template.baseName;
+  if (template.variants && template.variants.length > 0) {
+    const variantIdx = variantIndex !== null ? variantIndex : Math.floor(Math.random() * template.variants.length);
+    const variant = template.variants[variantIdx];
+    name = `${variant} ${template.baseName}`;
+  }
+  name += ` L${level}`;
+  
+  return {
+    id: templateId,
+    name,
+    type: template.type,
+    tier: template.tier,
+    isBoss: template.isBoss || false,
+    maxHp,
+    hp: maxHp,
+    attack,
+    rewardGold,
+    rewardXp,
+    level
+  };
 }
 
 function computePartySpeed() {
@@ -553,6 +890,91 @@ function stopAutoAttacks() {
   }
 }
 
+// Enhanced area progression system
+function getAvailableAreas() {
+  const completedAreas = state.completedAreas || [];
+  const availableAreas = [];
+  
+  for (const [areaId, area] of Object.entries(AREAS)) {
+    // Check if area requirements are met
+    if (!area.requirements || area.requirements.every(req => completedAreas.includes(req))) {
+      availableAreas.push({
+        id: areaId,
+        name: area.name,
+        description: area.description,
+        baseLevel: area.baseLevel,
+        maxWaves: area.maxWaves,
+        isCompleted: completedAreas.includes(areaId),
+        isUnlocked: true
+      });
+    }
+  }
+  
+  return availableAreas.sort((a, b) => a.baseLevel - b.baseLevel);
+}
+
+// Check if area is complete
+function checkAreaCompletion(areaId, waveNumber) {
+  const area = AREAS[areaId];
+  if (!area) return false;
+  
+  return waveNumber >= area.maxWaves;
+}
+
+// Get enemy display info for UI
+function getEnemyDisplayInfo(enemy) {
+  const template = ENEMY_TEMPLATES[enemy.id];
+  
+  return {
+    name: enemy.name,
+    type: enemy.type || 'unknown',
+    tier: enemy.tier || 1,
+    isBoss: enemy.isBoss || false,
+    hp: enemy.hp,
+    maxHp: enemy.maxHp,
+    level: enemy.level,
+    // Add visual indicators based on type/tier
+    cssClass: `enemy-${enemy.type} tier-${enemy.tier}${enemy.isBoss ? ' boss' : ''}`,
+    description: template ? `A ${template.type} creature of tier ${template.tier}` : 'A mysterious creature'
+  };
+}
+
+// Migration function to update existing game state
+function migrateToNewSystem() {
+  // Initialize new state properties if they don't exist
+  if (!state.currentAreaId) {
+    state.currentAreaId = "newSorpigal"; // Default starting area
+  }
+  if (!state.completedAreas) {
+    state.completedAreas = [];
+  }
+  if (!state.currentWave) {
+    state.currentWave = 1;
+  }
+  
+  // If we have old enemy data, try to convert it
+  if (state.enemies && state.enemies.length > 0) {
+    state.enemies = state.enemies.map((enemy, index) => {
+      // Try to guess enemy type from name
+      let templateId = "goblin"; // default fallback
+      const name = enemy.name.toLowerCase();
+      
+      if (name.includes("skeleton")) templateId = "skeleton";
+      else if (name.includes("bandit")) templateId = "bandit";
+      else if (name.includes("wolf")) templateId = "wolf";
+      else if (name.includes("orc")) templateId = "orc";
+      
+      return {
+        ...enemy,
+        id: templateId,
+        type: ENEMY_TEMPLATES[templateId]?.type || 'unknown',
+        tier: ENEMY_TEMPLATES[templateId]?.tier || 1,
+        level: state.enemyLevel || 1
+      };
+    });
+  }
+}
+
 // Wave completion menu
 function showWaveCompleteMenu() {
   stopEnemyAttacks();
@@ -581,9 +1003,66 @@ function showWaveCompleteMenu() {
     btn.addEventListener("click", () => {
       const action = btn.getAttribute("data-action");
       closeWaveCompleteMenu();
-      handleWaveMenuAction(action);
+      handleWaveMenuActionNew(action);
     });
   });
+}
+
+function showAreaCompleteMenu() {
+  const currentArea = AREAS[state.currentAreaId];
+  const availableAreas = getAvailableAreas();
+  const newlyUnlocked = availableAreas.filter(area => 
+    currentArea.unlocks && currentArea.unlocks.includes(area.id)
+  );
+  
+  const menu = document.createElement("div");
+  menu.id = "area-complete-menu";
+  menu.className = "modal-overlay";
+  
+  let unlockedText = "";
+  if (newlyUnlocked.length > 0) {
+    unlockedText = `<p class="unlock-text">🎉 New areas unlocked: ${newlyUnlocked.map(a => a.name).join(", ")}</p>`;
+  }
+  
+  menu.innerHTML = `
+    <div class="modal-content">
+      <h2>${currentArea.name} Complete!</h2>
+      <p>Congratulations! You have conquered all waves in this area.</p>
+      ${unlockedText}
+      <div class="menu-buttons">
+        <button class="btn large" data-action="change-area">Choose New Area</button>
+        <button class="btn large" data-action="repeat-area">Repeat This Area</button>
+        <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
+        <button class="btn large" data-action="buy-spells">Buy Spells</button>
+        <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  menu.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.getAttribute("data-action");
+      closeAreaCompleteMenu();
+      
+      if (action === "repeat-area") {
+        state.currentWave = 1;
+        setupWaveNew(1);
+        beginEnemyAttacks();
+        beginAutoAttacks();
+      } else if (action === "change-area") {
+        showAreaSelectionMenu();
+      } else {
+        handleWaveMenuActionNew(action);
+      }
+    });
+  });
+}
+
+function closeAreaCompleteMenu() {
+  const menu = document.getElementById("area-complete-menu");
+  if (menu) menu.remove();
 }
 
 function closeWaveCompleteMenu() {
@@ -593,24 +1072,109 @@ function closeWaveCompleteMenu() {
   }
 }
 
-function handleWaveMenuAction(action) {
+function showAreaSelectionMenu() {
+  const availableAreas = getAvailableAreas();
+  
+  const menu = document.createElement("div");
+  menu.id = "area-selection-menu";
+  menu.className = "modal-overlay";
+  
+  const areaButtons = availableAreas.map(area => {
+    const completedBadge = area.isCompleted ? '<span class="pill completed">✓ Completed</span>' : '';
+    return `
+      <div class="area-option">
+        <div class="area-info">
+          <h3>${area.name}</h3>
+          <p>${area.description}</p>
+          <div class="area-stats">
+            <span class="pill">Level ${area.baseLevel}+</span>
+            <span class="pill">${area.maxWaves} Waves</span>
+            ${completedBadge}
+          </div>
+        </div>
+        <button class="btn" data-action="select-area" data-area="${area.id}">Enter Area</button>
+      </div>
+    `;
+  }).join("");
+  
+  menu.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>Choose Your Adventure</h2>
+        <span class="pill">Select an area to explore</span>
+      </div>
+      <div class="area-list">
+        ${areaButtons}
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-action="cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  menu.querySelectorAll("[data-action='select-area']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const areaId = btn.getAttribute("data-area");
+      closeAreaSelectionMenu();
+      
+      // Start in the selected area
+      state.currentAreaId = areaId;
+      state.currentWave = 1;
+      setupWaveNew(1);
+      beginEnemyAttacks();
+      beginAutoAttacks();
+    });
+  });
+  
+  menu.querySelector("[data-action='cancel']").addEventListener("click", () => {
+    closeAreaSelectionMenu();
+    showWaveCompleteMenu(); // Return to previous menu
+  });
+}
+
+function closeAreaSelectionMenu() {
+  const menu = document.getElementById("area-selection-menu");
+  if (menu) menu.remove();
+}
+
+function handleWaveMenuActionNew(action) {
+  const currentArea = AREAS[state.currentAreaId];
+  
   switch (action) {
     case "repeat-wave":
-      setupWave(state.enemyLevel);
+      setupWaveNew(state.currentWave);
       beginEnemyAttacks();
       beginAutoAttacks();
       break;
+      
     case "next-wave":
-      setupWave(state.enemyLevel + 1);
+      const nextWave = state.currentWave + 1;
+      
+      // Check if we've completed the area
+      if (checkAreaCompletion(state.currentAreaId, nextWave)) {
+        if (!state.completedAreas.includes(state.currentAreaId)) {
+          state.completedAreas.push(state.currentAreaId);
+        }
+        // Show area completion screen instead of just next wave
+        showAreaCompleteMenu();
+        return;
+      }
+      
+      setupWaveNew(nextWave);
       beginEnemyAttacks();
       beginAutoAttacks();
       break;
+      
     case "upgrade-skills":
       showSkillsMenu();
       break;
+      
     case "buy-spells":
       showSpellShopMenu();
       break;
+      
     case "rest":
       if (state.gold >= 50) {
         state.gold -= 50;
@@ -622,7 +1186,11 @@ function handleWaveMenuAction(action) {
         updatePartyBars();
         renderSidebar();
       }
-      showWaveCompleteMenu(); // Show the menu again with updated gold
+      showWaveCompleteMenu();
+      break;
+      
+    case "change-area":
+      showAreaSelectionMenu();
       break;
   }
 }
@@ -840,7 +1408,7 @@ function buySpellForCharacter(characterIndex, spellKey) {
 // Controls
 
 document.getElementById("next-enemy").addEventListener("click", () => {
-  setupWave(state.enemyLevel + 1);
+  setupWaveNew(state.enemyLevel + 1);
 });
 
 // Keyboard controls for character selection
