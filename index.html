@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Might & Magic VI Clicker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Party Creation Screen -->
+      <section id="creation-screen" class="screen">
+        <header class="topbar">
+          <h1>Might & Magic VI Clicker</h1>
+          <p class="subtitle">Create a party of 4 heroes. Choose classes and distribute bonus points.</p>
+        </header>
+
+        <div id="party-creator" class="creator-grid"></div>
+
+        <div class="creator-actions">
+          <button id="randomize-all" class="btn secondary">Randomize All</button>
+          <button id="reset-all" class="btn secondary">Reset All</button>
+          <button id="start-adventure" class="btn primary">Start Adventure</button>
+        </div>
+      </section>
+
+      <!-- Game Screen -->
+      <section id="game-screen" class="screen hidden">
+        <header class="game-topbar">
+          <div class="stat">Gold: <span id="gold">0</span></div>
+          <div class="stat">Enemy Lvl: <span id="enemy-level">1</span></div>
+          <div class="actions">
+            <button id="next-enemy" class="btn secondary">Next Enemy</button>
+          </div>
+        </header>
+
+        <main class="game-area">
+          <div class="game-layout">
+            <section class="encounter">
+              <h2 class="encounter-title"><span id="area-name">New Sorpigal Outskirts</span> - Wave <span id="wave-number">1</span></h2>
+              <div id="enemy-list" class="enemy-list"></div>
+            </section>
+            <aside id="sidebar" class="sidebar">
+              <!-- Populated dynamically with selected character info -->
+            </aside>
+          </div>
+        </main>
+
+        <!-- Bottom Party Bar -->
+        <footer id="party-bar" class="party-bar"></footer>
+
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
+
+
