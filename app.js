@@ -679,35 +679,73 @@ function setupWaveFromArea(areaId, waveNumber) {
 
 function renderEnemyList() {
   enemyListEl.innerHTML = "";
-  state.enemies.forEach((e, idx) => {
+  
+  // Filter out dead enemies for cleaner UI
+  const livingEnemies = state.enemies.filter(e => e.hp > 0);
+  
+  if (livingEnemies.length === 0) {
+    // All enemies defeated - this will trigger wave complete logic elsewhere
+    enemyListEl.innerHTML = '<div class="no-enemies">All enemies defeated!</div>';
+    return;
+  }
+  
+  // Re-index living enemies for proper targeting
+  livingEnemies.forEach((enemy, displayIndex) => {
+    // Find the original index in the full enemies array
+    const originalIndex = state.enemies.findIndex(e => e === enemy);
+    
     const row = document.createElement("div");
-    row.className = "enemy-row";
-    row.setAttribute("data-index", String(idx));
+    row.className = `enemy-row ${getEnemyDisplayInfo(enemy).cssClass}`;
+    row.setAttribute("data-index", String(originalIndex));
+    row.setAttribute("data-display-index", String(displayIndex));
+    
+    // Enhanced enemy display with type information
+    const enemyInfo = getEnemyDisplayInfo(enemy);
+    const typeIndicator = `<span class="enemy-type ${enemyInfo.type}">${enemyInfo.type}</span>`;
+    const tierIndicator = enemyInfo.tier !== 'boss' ? 
+      `<span class="enemy-tier tier-${enemyInfo.tier}">T${enemyInfo.tier}</span>` : 
+      '<span class="enemy-tier boss">BOSS</span>';
+    
     row.innerHTML = `
       <div class="row-head">
-        <div class="enemy-name">${e.name}</div>
+        <div class="enemy-info">
+          <div class="enemy-name">${enemy.name}</div>
+          <div class="enemy-tags">${typeIndicator} ${tierIndicator}</div>
+        </div>
         <div class="row-actions">
-          <button class="btn small" data-action="focus">Focus</button>
+          <button class="btn small" data-action="focus" ${state.focusedEnemyIndex === originalIndex ? 'class="focused"' : ''}>
+            ${state.focusedEnemyIndex === originalIndex ? 'Focused' : 'Focus'}
+          </button>
         </div>
       </div>
-      <div class="bar hp"><div class="fill" style="width:${(e.hp / e.maxHp) * 100}%"></div><div class="bar-text">${e.hp} / ${e.maxHp}</div></div>
+      <div class="bar hp"><div class="fill" style="width:${(enemy.hp / enemy.maxHp) * 100}%"></div><div class="bar-text">${enemy.hp} / ${enemy.maxHp}</div></div>
       <div class="click-area">Click to Attack</div>
     `;
+    
     enemyListEl.appendChild(row);
   });
 
-  // Click handlers
+  // Click handlers for attacks
   enemyListEl.querySelectorAll(".enemy-row .click-area").forEach((el) => {
     el.addEventListener("click", () => {
-      const idx = Number(el.parentElement.getAttribute("data-index"));
-      clickAttackEnemy(idx);
+      const originalIndex = Number(el.parentElement.getAttribute("data-index"));
+      clickAttackEnemy(originalIndex);
     });
   });
 
+  // Click handlers for focus
   enemyListEl.querySelectorAll(".enemy-row [data-action='focus']").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const idx = Number(btn.closest('.enemy-row').getAttribute("data-index"));
-      state.focusedEnemyIndex = idx;
+      const originalIndex = Number(btn.closest('.enemy-row').getAttribute("data-index"));
+      
+      // Toggle focus
+      if (state.focusedEnemyIndex === originalIndex) {
+        state.focusedEnemyIndex = null;
+      } else {
+        state.focusedEnemyIndex = originalIndex;
+      }
+      
+      renderEnemyList(); // Re-render to update focus indicators
     });
   });
 }
@@ -761,16 +799,19 @@ function generateEnemyFromTemplate(templateId, level, variantIndex = null) {
 }
 
 function computePartySpeed() {
-  // Average speed across living party members
-  const livingMembers = state.party.filter(c => c.hp > 0);
+  // Only living party members contribute to speed
+  const livingMembers = getLivingPartyMembers();
   if (livingMembers.length === 0) return 0;
   return livingMembers.reduce((sum, c) => sum + c.totalStats.Speed, 0) / livingMembers.length;
 }
 
 function computeCriticalChance() {
-  // Base crit chance from luck + focus skill bonus
-  const totalLuck = state.party.reduce((sum, c) => sum + c.totalStats.Luck, 0);
-  const focusBonus = state.party.reduce((sum, c) => sum + c.skills.focus * 0.03, 0);
+  // Only living characters contribute to crit chance
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) return 0;
+  
+  const totalLuck = livingMembers.reduce((sum, c) => sum + c.totalStats.Luck, 0);
+  const focusBonus = livingMembers.reduce((sum, c) => sum + c.skills.focus * 0.03, 0);
   const baseCritChance = Math.min(0.5, (totalLuck / 4) / 100 + focusBonus); // Cap at 50%
   return baseCritChance;
 }
@@ -783,10 +824,18 @@ function isAttackCritical() {
   return Math.random() < computeCriticalChance();
 }
 
+// Enhanced stat computation functions that only count living characters
+function getLivingPartyMembers() {
+  return state.party.filter(c => c.hp > 0);
+}
+
 function computeClickDamage() {
-  // Simple: sum Might across party, scaled
-  const totalMight = state.party.reduce((sum, c) => sum + c.totalStats.Might, 0);
-  const weaponSkillBonus = state.party.reduce((sum, c) => sum + c.skills.weaponMastery * 0.05, 0);
+  // Only living characters contribute to damage
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) return 0;
+  
+  const totalMight = livingMembers.reduce((sum, c) => sum + c.totalStats.Might, 0);
+  const weaponSkillBonus = livingMembers.reduce((sum, c) => sum + c.skills.weaponMastery * 0.05, 0);
   const base = Math.max(1, Math.floor(totalMight / 6));
   let damage = Math.floor(base * (1 + weaponSkillBonus));
   
@@ -798,35 +847,75 @@ function computeClickDamage() {
   return damage;
 }
 
-function computeEnemyAttackDamage() {
+function computeEnemyAttackDamage(enemy = null) {
+  if (enemy && enemy.attack) {
+    // Use enemy-specific attack value if available
+    return Math.max(1, Math.floor(enemy.attack + Math.random() * enemy.attack * 0.3));
+  }
+  
+  // Fallback to old system
   const level = state.enemyLevel;
   return Math.max(1, Math.floor(2 + level * 1.5));
 }
 
+// Game Over detection and handling
+function checkGameOver() {
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) {
+    // Delay slightly to let the UI update
+    setTimeout(() => {
+      showGameOverMenu();
+    }, 500);
+  }
+}
+
 // Clicking to attack
 function clickAttackEnemy(index) {
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) {
+    // Dead party can't attack
+    return;
+  }
+  
   const enemy = state.enemies[index];
   if (!enemy || enemy.hp <= 0) return;
+  
   const dmg = computeClickDamage();
-  enemy.hp = Math.max(0, enemy.hp - dmg);
-  onEnemyDamaged(index);
+  if (dmg > 0) {
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    onEnemyDamaged(index);
+  }
 }
 
 function onEnemyDamaged(index) {
   const enemy = state.enemies[index];
-  const row = enemyListEl.querySelector(`.enemy-row[data-index='${index}']`);
-  if (!row) return;
-  const pct = Math.max(0, Math.min(100, (enemy.hp / enemy.maxHp) * 100));
-  row.querySelector('.bar .fill').setAttribute('style', `width:${pct}%`);
-  row.querySelector('.bar .bar-text').textContent = `${enemy.hp} / ${enemy.maxHp}`;
+  if (!enemy) return;
+  
+  // Update enemy display
+  renderEnemyList();
+  
   if (enemy.hp <= 0) {
+    // Enemy died - give rewards
     state.gold += enemy.rewardGold;
     goldEl.textContent = String(state.gold);
-    for (const c of state.party) c.xp += enemy.rewardXp;
+    
+    // Give XP only to living characters
+    const livingMembers = getLivingPartyMembers();
+    livingMembers.forEach(c => c.xp += enemy.rewardXp);
+    
     updatePartyBars();
-    // Check if all enemies are defeated -> show wave completion menu
+    
+    // Clear focus if focused enemy died
+    if (state.focusedEnemyIndex === index) {
+      state.focusedEnemyIndex = null;
+    }
+    
+    // Check if all enemies are defeated
     if (state.enemies.every((e) => e.hp <= 0)) {
-      showWaveCompleteMenu();
+      // Small delay to let UI update
+      setTimeout(() => {
+        showWaveCompleteMenu();
+      }, 200);
     }
   }
 }
@@ -834,13 +923,35 @@ function onEnemyDamaged(index) {
 // Enemy attacks party over time
 function beginEnemyAttacks() {
   stopEnemyAttacks();
+  
   state.enemyAttackTimerId = setInterval(() => {
-    const living = state.party.filter((c) => c.hp > 0);
-    if (living.length === 0) return;
-    const target = living[Math.floor(Math.random() * living.length)];
-    const dmg = computeEnemyAttackDamage();
+    const livingMembers = getLivingPartyMembers();
+    if (livingMembers.length === 0) {
+      // Party is dead - stop enemy attacks and trigger game over
+      stopEnemyAttacks();
+      checkGameOver();
+      return;
+    }
+    
+    // Only living enemies attack
+    const livingEnemies = state.enemies.filter(e => e.hp > 0);
+    if (livingEnemies.length === 0) return;
+    
+    // Random living enemy attacks random living party member
+    const attackingEnemy = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+    const target = livingMembers[Math.floor(Math.random() * livingMembers.length)];
+    
+    const dmg = computeEnemyAttackDamage(attackingEnemy);
     target.hp = Math.max(0, target.hp - dmg);
+    
     updatePartyBars();
+    
+    // Check if this killed the last party member
+    if (getLivingPartyMembers().length === 0) {
+      stopEnemyAttacks();
+      stopAutoAttacks();
+      checkGameOver();
+    }
   }, 1500);
 }
 
@@ -854,14 +965,28 @@ function stopEnemyAttacks() {
 // Auto-attack system
 function beginAutoAttacks() {
   stopAutoAttacks();
+  
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) {
+    // No living members - can't auto attack
+    return;
+  }
+  
   const speed = computePartySpeed();
   if (speed <= 0) return;
   
-  // Attack interval based on party speed (faster = more frequent attacks)
-  // Base interval of 3000ms, reduced by speed
+  // Attack interval based on living party speed
   const interval = Math.max(500, 3000 - (speed * 50));
   
   state.autoAttackTimerId = setInterval(() => {
+    // Check if party is still alive
+    const currentLiving = getLivingPartyMembers();
+    if (currentLiving.length === 0) {
+      stopAutoAttacks();
+      checkGameOver();
+      return;
+    }
+    
     // Find a living enemy to attack
     const livingEnemies = state.enemies.filter(e => e.hp > 0);
     if (livingEnemies.length === 0) return;
@@ -876,9 +1001,11 @@ function beginAutoAttacks() {
     
     if (targetIndex >= 0) {
       const dmg = computeClickDamage();
-      const enemy = state.enemies[targetIndex];
-      enemy.hp = Math.max(0, enemy.hp - dmg);
-      onEnemyDamaged(targetIndex);
+      if (dmg > 0) { // Only attack if we can do damage
+        const enemy = state.enemies[targetIndex];
+        enemy.hp = Math.max(0, enemy.hp - dmg);
+        onEnemyDamaged(targetIndex);
+      }
     }
   }, interval);
 }
@@ -1451,56 +1578,70 @@ function selectCharacter(index) {
 function renderSidebar() {
   const character = state.party[state.selectedIndex] || state.party[0];
   if (!character) return;
+  
   const classDef = CLASS_DEFS[character.classKey];
   const canLevel = character.xp >= character.nextLevelXp;
+  const isDead = character.hp <= 0;
   const skills = character.skills;
   const spells = character.knownSpells;
 
-  const skillRows = Object.values(SKILL_DEFS).map((sk) => {
-    const rank = skills[sk.key] || 0;
-    const cost = getSkillUpgradeCost(sk.baseCost, rank);
-    const disabled = state.gold < cost ? "disabled" : "";
-    return `
-      <div class="row">
-        <div>
-          <div>${sk.name} <span class="pill">Rank ${rank}</span></div>
-          <div class="cost">${sk.desc} • Cost: ${cost} gold</div>
+  // Only show skills for living characters, or show "DEAD" status
+  const skillRows = isDead ? '<div class="death-notice">⚰️ This hero has fallen and cannot act!</div>' :
+    Object.values(SKILL_DEFS).map((sk) => {
+      const rank = skills[sk.key] || 0;
+      const cost = getSkillUpgradeCost(sk.baseCost, rank);
+      const disabled = state.gold < cost ? "disabled" : "";
+      return `
+        <div class="row">
+          <div>
+            <div>${sk.name} <span class="pill">Rank ${rank}</span></div>
+            <div class="cost">${sk.desc} • Cost: ${cost} gold</div>
+          </div>
+          <button class="btn small" data-action="upgrade-skill" data-skill="${sk.key}" ${disabled}>Upgrade</button>
         </div>
-        <button class="btn small" data-action="upgrade-skill" data-skill="${sk.key}" ${disabled}>Upgrade</button>
-      </div>
-    `;
-  }).join("");
+      `;
+    }).join("");
 
-  const spellRows = spells.map((key) => {
-    const s = SPELL_DEFS[key];
-    const disabled = character.mp < s.mpCost ? "disabled" : "";
-    return `
-      <button class="btn" data-action="cast-spell" data-spell="${s.key}" ${disabled}>${s.name} (MP ${s.mpCost})</button>
-    `;
-  }).join("");
+  // Only living characters can cast spells
+  const spellRows = isDead ? '<div class="hint">Dead heroes cannot cast spells</div>' :
+    spells.map((key) => {
+      const s = SPELL_DEFS[key];
+      const disabled = character.mp < s.mpCost ? "disabled" : "";
+      return `
+        <button class="btn" data-action="cast-spell" data-spell="${s.key}" ${disabled}>${s.name} (MP ${s.mpCost})</button>
+      `;
+    }).join("");
 
+  const livingCount = getLivingPartyMembers().length;
   const critChance = Math.round(computeCriticalChance() * 100);
   const partySpeed = Math.round(computePartySpeed());
   
+  // Add death indicator to character name
+  const characterTitle = isDead ? 
+    `💀 Hero ${character.id + 1} • ${classDef.name} • L${character.level} • DEAD` :
+    `Hero ${character.id + 1} • ${classDef.name} • L${character.level}`;
+  
   sidebarEl.innerHTML = `
     <div class="header">
-      <div class="title">Hero ${character.id + 1} • ${classDef.name} • L${character.level}</div>
+      <div class="title ${isDead ? 'character-dead' : ''}">${characterTitle}</div>
       <span class="pill">Gold: ${state.gold}</span>
     </div>
+    
     <div class="section">
       <h3>Overview</h3>
       <div class="kv"><div>XP</div><div>${character.xp} / ${character.nextLevelXp}</div></div>
-      <div class="kv"><div>HP</div><div>${character.hp} / ${character.maxHp}</div></div>
+      <div class="kv"><div>HP</div><div class="${isDead ? 'dead' : ''}">${character.hp} / ${character.maxHp}</div></div>
       <div class="kv"><div>MP</div><div>${character.mp} / ${character.maxMp}</div></div>
       <div style="margin-top:8px; display:flex; gap:8px;">
-        <button class="btn" id="level-up" ${canLevel ? "" : "disabled"}>Level Up</button>
+        <button class="btn" id="level-up" ${canLevel && !isDead ? "" : "disabled"}>Level Up</button>
       </div>
     </div>
 
     <div class="section">
-      <h3>Combat Stats</h3>
-      <div class="kv"><div>Crit Chance</div><div>${critChance}%</div></div>
+      <h3>Party Status</h3>
+      <div class="kv"><div>Living Heroes</div><div class="${livingCount === 0 ? 'all-dead' : ''}">${livingCount} / ${state.party.length}</div></div>
       <div class="kv"><div>Party Speed</div><div>${partySpeed}</div></div>
+      <div class="kv"><div>Crit Chance</div><div>${critChance}%</div></div>
       ${state.guaranteedCrits > 0 ? `<div class="kv"><div>Blessed Hits</div><div style="color: var(--accent);">${state.guaranteedCrits}</div></div>` : ''}
     </div>
 
@@ -1511,14 +1652,15 @@ function renderSidebar() {
 
     <div class="section">
       <h3>Stats</h3>
-      ${ATTRIBUTE_KEYS.map((k) => `<div class="kv"><div>${k}</div><div>${character.totalStats[k]}</div></div>`).join("")}
+      ${ATTRIBUTE_KEYS.map((k) => `<div class="kv"><div>${k}</div><div class="${isDead ? 'dead-stat' : ''}">${character.totalStats[k]}</div></div>`).join("")}
     </div>
   `;
 
+  // Level up button (only works for living characters)
   const levelBtn = document.getElementById("level-up");
   if (levelBtn) {
     levelBtn.addEventListener("click", () => {
-      if (character.xp >= character.nextLevelXp) {
+      if (character.xp >= character.nextLevelXp && !isDead) {
         character.xp -= character.nextLevelXp;
         character.level += 1;
         character.nextLevelXp = getNextLevelXp(character.level);
@@ -1528,19 +1670,31 @@ function renderSidebar() {
         character.mp = character.maxMp;
         updatePartyBars();
         renderSidebar();
+        
+        // If this was the last dead character, restart auto attacks
+        if (getLivingPartyMembers().length === 1 && !state.autoAttackTimerId) {
+          beginAutoAttacks();
+        }
       }
     });
   }
 
-
-
-  sidebarEl.querySelectorAll("[data-action='cast-spell']").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const spellKey = btn.getAttribute("data-spell");
-      castSpell(character, spellKey);
-      renderSidebar();
+  // Spell casting (only for living characters)
+  if (!isDead) {
+    sidebarEl.querySelectorAll("[data-action='cast-spell']").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const spellKey = btn.getAttribute("data-spell");
+        castSpell(character, spellKey);
+        renderSidebar();
+        
+        // If we just revived someone, restart systems if needed
+        const livingAfterSpell = getLivingPartyMembers().length;
+        if (livingAfterSpell > 0 && !state.autoAttackTimerId) {
+          beginAutoAttacks();
+        }
+      });
     });
-  });
+  }
 }
 
 function getSkillUpgradeCost(base, rank) {
@@ -1568,9 +1722,16 @@ function applySkillDerivedBonuses(character) {
 }
 
 function castSpell(character, spellKey) {
+  // Dead characters can't cast spells
+  if (character.hp <= 0) {
+    console.log("Dead characters cannot cast spells!");
+    return;
+  }
+  
   const spell = SPELL_DEFS[spellKey];
   if (!spell) return;
   if (character.mp < spell.mpCost) return;
+  
   character.mp -= spell.mpCost;
   const sp = character.skills.spellpower || 0;
   const spMult = 1 + sp * 0.05;
@@ -1595,7 +1756,7 @@ function castSpell(character, spellKey) {
     }
     
     if (targetAll) {
-      // Meteor hits all enemies
+      // Meteor hits all living enemies
       state.enemies.forEach((enemy, idx) => {
         if (enemy.hp > 0) {
           enemy.hp = Math.max(0, enemy.hp - power);
@@ -1603,13 +1764,17 @@ function castSpell(character, spellKey) {
         }
       });
     } else {
-      // Single target damage
-      let idx = typeof state.focusedEnemyIndex === 'number' ? state.focusedEnemyIndex : 0;
-      if (!state.enemies || state.enemies.length === 0) return;
-      if (!state.enemies[idx] || state.enemies[idx].hp <= 0) {
+      // Single target damage - prefer focused enemy, or first living enemy
+      let idx = typeof state.focusedEnemyIndex === 'number' ? state.focusedEnemyIndex : -1;
+      
+      // If focused enemy is dead, find first living enemy
+      if (idx === -1 || !state.enemies[idx] || state.enemies[idx].hp <= 0) {
         idx = state.enemies.findIndex(e => e.hp > 0);
-        state.focusedEnemyIndex = idx;
+        if (idx >= 0) {
+          state.focusedEnemyIndex = idx;
+        }
       }
+      
       if (idx >= 0) {
         const enemy = state.enemies[idx];
         enemy.hp = Math.max(0, enemy.hp - power);
@@ -1633,29 +1798,182 @@ function castSpell(character, spellKey) {
     }
     
     if (targetAll) {
-      // Cure All heals entire party
+      // Cure All heals entire party (living and dead characters)
       state.party.forEach(member => {
         member.hp = Math.min(member.maxHp, member.hp + amount);
       });
     } else {
-      // Single target heal (lowest % hp ally)
-      const target = [...state.party].sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0] || character;
+      // Single target heal - prioritize lowest HP% living character, but can revive dead ones too
+      const healTargets = [...state.party].sort((a, b) => {
+        // Prioritize dead characters, then lowest HP% living ones
+        if (a.hp === 0 && b.hp > 0) return -1;
+        if (a.hp > 0 && b.hp === 0) return 1;
+        if (a.hp === 0 && b.hp === 0) return 0;
+        return (a.hp / a.maxHp) - (b.hp / b.maxHp);
+      });
+      
+      const target = healTargets[0] || character;
       target.hp = Math.min(target.maxHp, target.hp + amount);
+      
+      // If we just revived someone, restart auto attacks
+      if (target.hp > 0 && !state.autoAttackTimerId) {
+        beginAutoAttacks();
+      }
     }
     updatePartyBars();
   } else if (spell.type === "buff") {
     if (spellKey === "shield") {
-      // Magic Shield - restore some MP to the caster
+      // Magic Shield - restore some MP to the caster (only if alive)
       const restore = 5 + Math.floor(character.totalStats.Intellect * 0.3 * spMult);
       character.mp = Math.min(character.maxMp, character.mp + restore);
       updatePartyBars();
     } else if (spellKey === "bless") {
-      // Bless - guarantee next attacks are critical
-      const spellpowerRank = character.skills.spellpower || 0;
-      const guaranteedCrits = Math.min(10, 1 + spellpowerRank); // 1 base + spellpower rank, max 10
-      state.guaranteedCrits += guaranteedCrits;
+      // Bless - guarantee next attacks are critical (only works if party has living members)
+      const livingMembers = getLivingPartyMembers();
+      if (livingMembers.length > 0) {
+        const spellpowerRank = character.skills.spellpower || 0;
+        const guaranteedCrits = Math.min(10, 1 + spellpowerRank);
+        state.guaranteedCrits += guaranteedCrits;
+      }
     }
   }
 }
 
+// Game Over menu with Might & Magic style message
+function showGameOverMenu() {
+  stopEnemyAttacks();
+  stopAutoAttacks();
+  
+  const menu = document.createElement("div");
+  menu.id = "game-over-menu";
+  menu.className = "modal-overlay game-over";
+  
+  const currentArea = AREAS[state.currentAreaId] || { name: "Unknown Area" };
+  
+  menu.innerHTML = `
+    <div class="modal-content game-over-content">
+      <div class="game-over-header">
+        <h2>💀 DEFEAT 💀</h2>
+        <div class="death-message">
+          "Though eternity lies before thee, thy work in the land of the living is not done. 
+          Return brave ones. I am certain that we shall meet again."
+        </div>
+      </div>
+      
+      <div class="death-stats">
+        <div class="stat-row">
+          <span>Area:</span>
+          <span>${currentArea.name}</span>
+        </div>
+        <div class="stat-row">
+          <span>Wave Reached:</span>
+          <span>${state.currentWave || 1}</span>
+        </div>
+        <div class="stat-row">
+          <span>Gold Earned:</span>
+          <span>${state.gold}</span>
+        </div>
+      </div>
+      
+      <div class="game-over-actions">
+        <button class="btn large primary" data-action="restart-area">Return to the Living</button>
+        <button class="btn large secondary" data-action="restart-game">Start New Adventure</button>
+      </div>
+      
+      <div class="game-over-hint">
+        💡 <strong>Tip:</strong> Consider upgrading your skills or buying healing spells before challenging difficult enemies!
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  // Add event listeners
+  menu.querySelector("[data-action='restart-area']").addEventListener("click", () => {
+    closeGameOverMenu();
+    restartFromAreaBeginning();
+  });
+  
+  menu.querySelector("[data-action='restart-game']").addEventListener("click", () => {
+    if (confirm("Are you sure you want to start a completely new adventure? All progress will be lost!")) {
+      closeGameOverMenu();
+      restartEntireGame();
+    }
+  });
+}
+
+function closeGameOverMenu() {
+  const menu = document.getElementById("game-over-menu");
+  if (menu) {
+    menu.remove();
+  }
+}
+
+// Restart from beginning of current area
+function restartFromAreaBeginning() {
+  // Fully heal all party members
+  state.party.forEach(character => {
+    character.hp = character.maxHp;
+    character.mp = character.maxMp;
+  });
+  
+  // Reset to wave 1 of current area
+  state.currentWave = 1;
+  state.focusedEnemyIndex = null;
+  
+  // Set up the first wave
+  if (typeof setupWaveNew === 'function') {
+    setupWaveNew(1, state.currentAreaId);
+  } else {
+    setupWave(1); // Fallback to old system
+  }
+  
+  // Restart combat
+  beginEnemyAttacks();
+  beginAutoAttacks();
+  
+  // Update UI
+  updatePartyBars();
+  renderSidebar();
+  
+  console.log(`Restarted at ${AREAS[state.currentAreaId]?.name || 'current area'}, Wave 1`);
+}
+
+// Complete game restart
+function restartEntireGame() {
+  // Reset all progress
+  state.currentAreaId = "newSorpigal";
+  state.currentWave = 1;
+  state.completedAreas = [];
+  state.focusedEnemyIndex = null;
+  state.gold = 0;
+  state.guaranteedCrits = 0;
+  
+  // Reset party to level 1
+  state.party.forEach((character, index) => {
+    const newChar = createCharacter(index, character.classKey);
+    // Copy over any bonus point allocations
+    newChar.bonusAllocations = { ...character.bonusAllocations };
+    newChar.remainingBonus = character.remainingBonus;
+    computeTotals(newChar);
+    state.party[index] = newChar;
+  });
+  
+  // Start fresh
+  if (typeof setupWaveNew === 'function') {
+    setupWaveNew(1, "newSorpigal");
+  } else {
+    setupWaveNew(1, "newSorpigal");
+  }
+  
+  beginEnemyAttacks();
+  beginAutoAttacks();
+  
+  // Update UI
+  updatePartyBars();
+  renderSidebar();
+  goldEl.textContent = "0";
+  
+  console.log("Started new adventure!");
+}
 
