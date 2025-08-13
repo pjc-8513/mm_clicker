@@ -1,3 +1,4 @@
+
 // Core data: classes and base stats inspired by MM6
 const ATTRIBUTE_KEYS = [
   "Might",
@@ -1408,47 +1409,61 @@ function clickAttackEnemy(index) {
 }
 
 function onEnemyDamaged(index) {
-  const enemy = state.enemies[index];
-  const livingMembers = getLivingPartyMembers();
-
-  if (!enemy) return;
-  
-  // Update enemy display
-  renderEnemyListWithVariants();
-  
-  if (enemy.hp <= 0) {
-    // Enemy died - give rewards (same as before)
-    const pickPocketBonus = livingMembers.reduce((total, character) => {
-      return total + (character.skills.pickPocket || 0) * 0.1;
-    }, 0);
-
-    const bonusGold = Math.round(enemy.rewardGold * pickPocketBonus);
-    state.gold += enemy.rewardGold + bonusGold;
-    goldEl.textContent = String(state.gold);
+  // Handle game logic first
+  setTimeout(() => {
+    renderEnemyListWithVariants();
     
-    // Give XP with learning bonus
-    livingMembers.forEach(c => {
-      const learningRank = c.skills.learning || 0;
-      const learningBonus = learningRank * 0.1;
-      const finalXp = Math.round(enemy.rewardXp * (1 + learningBonus));
-      c.xp += finalXp;
-    });
-    
-    updatePartyBars();
-    renderSidebar();
-    
-    // Clear focus if focused enemy died
-    if (state.focusedEnemyIndex === index) {
-      state.focusedEnemyIndex = null;
-    }
-    
-    // Check if all enemies are defeated
-    if (state.enemies.every((e) => e.hp <= 0)) {
+    // Apply animation after DOM is updated
+    const enemyRow = document.querySelector(`.enemy-row[data-index="${index}"] .hp`);
+    if (enemyRow) {
+      // Remove class first if it exists to ensure animation can retrigger
+      enemyRow.classList.remove("damage-flash");
+      
+      // Force reflow to ensure class removal is processed
+      enemyRow.offsetHeight;
+      
+      // Add class to trigger animation
+      enemyRow.classList.add("damage-flash");
+      
       setTimeout(() => {
-        showWaveCompleteMenuOrContinue(); // Use new function
-      }, 200);
+        enemyRow.classList.remove("damage-flash");
+      }, 400);
     }
-  }
+
+    const enemy = state.enemies[index];
+    const livingMembers = getLivingPartyMembers();
+
+    if (enemy && enemy.hp <= 0) {
+      // existing death/reward logic...
+      const pickPocketBonus = livingMembers.reduce((total, character) => {
+        return total + (character.skills.pickPocket || 0) * 0.1;
+      }, 0);
+
+      const bonusGold = Math.round(enemy.rewardGold * pickPocketBonus);
+      state.gold += enemy.rewardGold + bonusGold;
+      goldEl.textContent = String(state.gold);
+
+      livingMembers.forEach(c => {
+        const learningRank = c.skills.learning || 0;
+        const learningBonus = learningRank * 0.1;
+        const finalXp = Math.round(enemy.rewardXp * (1 + learningBonus));
+        c.xp += finalXp;
+      });
+
+      updatePartyBars();
+      renderSidebar();
+
+      if (state.focusedEnemyIndex === index) {
+        state.focusedEnemyIndex = null;
+      }
+
+      if (state.enemies.every((e) => e.hp <= 0)) {
+        setTimeout(() => {
+          showWaveCompleteMenuOrContinue();
+        }, 200);
+      }
+    }
+  }, 50);
 }
 
 // Enemy attacks party over time
