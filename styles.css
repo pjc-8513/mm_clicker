@@ -155,6 +155,61 @@ body {
 .portrait .bar { height: 16px; }
 .portrait .bar .bar-text { font-size: 11px; }
 
+.portrait.damage-flash {
+  animation: damage-pulse-red 0.5s ease-out;
+}
+
+@keyframes damage-pulse-red {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 0, 0, 0.0);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.75); /* A vibrant red shadow */
+    transform: scale(1.05); /* Slight scale to emphasize the hit */
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(255, 0, 0, 0.0);
+    transform: scale(1);
+  }
+}
+
+.portrait.heal-flash {
+  animation: heal-pulse-green 0.5s ease-out;
+}
+
+@keyframes heal-pulse-green {
+  0% {
+    box-shadow: 0 0 0 rgba(0, 255, 0, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba(0, 255, 0, 0.75); /* A vibrant green shadow */
+    transform: scale(1.05); /* Slight scale to emphasize the heal */
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(0, 255, 0, 0.0);
+    transform: scale(1);
+  }
+}
+
+
+.portrait.regen-glow {
+  animation: regen-pulse-green 2s infinite ease-in-out;
+}
+
+@keyframes regen-pulse-green {
+  0% {
+    box-shadow: 0 0 10px 0px rgba(0, 255, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(0, 255, 0, 0.75);
+  }
+  100% {
+    box-shadow: 0 0 10px 0px rgba(0, 255, 0, 0.5);
+  }
+}
+
 .game-topbar .stat { color: #d7dee7; }
 .game-topbar .actions { display: flex; gap: 8px; }
 
@@ -324,4 +379,101 @@ body {
   filter: none;
 }
 
+/* Styling for Corrupted enemies */
+.variant-corrupted {
+  background-color: #3b2a47; /* A dark purple or magenta background */
+  border: 1px solid #9c59b8;
+}
 
+/* Styling for Elite enemies */
+.variant-elite {
+  background-color: #2a3a47; /* A dark blue or gray background */
+  border: 1px solid #5983b8;
+}
+
+/* Styling for Champion enemies */
+.variant-champion {
+  background-color: #473a2a; /* A dark red or orange background */
+  border: 1px solid #b89c59;
+}
+
+const dungeonStyles = `
+.dungeon-area {
+  border: 2px solid #ff6b35;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(139, 69, 19, 0.1));
+}
+
+.dungeon-area .area-info h3 {
+  color: #ff6b35;
+}
+
+.pill.dungeon {
+  background: #ff6b35;
+  color: white;
+}
+
+.dungeon-warning {
+  color: #ff6b35;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-top: 8px;
+}
+
+.dungeon-complete-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.victory-message {
+  color: #666;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.dungeon-reward-display {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(139, 195, 74, 0.1));
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  text-align: center;
+}
+
+.reward-description {
+  color: #4caf50;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.stat-boost {
+  display: inline-block;
+  background: #4caf50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  font-weight: bold;
+}
+`;
+
+// Apply the styles
+if (!document.getElementById('dungeon-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'dungeon-styles';
+  styleSheet.textContent = dungeonStyles;
+  document.head.appendChild(styleSheet);
+}
+
+/* Style for the disabled button */
+.btn[disabled] {
+  background-color: #555;
+  color: #999;
+  cursor: not-allowed;
+  border: 1px solid #444;
+}
+
+/* Style for the entire unselectable area row */
+.area-option.dungeon-area.disabled {
+  opacity: 0.6;
+  pointer-events: none; /* Prevents all click events on the div */
+}
