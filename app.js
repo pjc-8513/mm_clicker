@@ -10,48 +10,56 @@ const ATTRIBUTE_KEYS = [
   "Dexterity"
 ];
 
+
 const CLASS_DEFS = {
   knight: {
     name: "Knight",
     baseStats: { Might: 15, Intellect: 7, Personality: 7, Endurance: 15, Accuracy: 13, Speed: 10, Luck: 10, Dexterity: 8 },
     hp: (s) => 35 + Math.floor(s.Endurance * 3.0),
     mp: (s) => 0,
+    image: "knight_p.png",
   },
   paladin: {
     name: "Paladin",
     baseStats: { Might: 13, Intellect: 8, Personality: 12, Endurance: 13, Accuracy: 10, Speed: 10, Luck: 10, Dexterity: 9 },
     hp: (s) => 30 + Math.floor(s.Endurance * 2.6),
     mp: (s) => 5 + Math.floor(s.Personality * 1.0),
+    image: "paladin_p.png",
   },
   archer: {
     name: "Archer",
     baseStats: { Might: 12, Intellect: 10, Personality: 8, Endurance: 10, Accuracy: 14, Speed: 12, Luck: 10, Dexterity: 15 },
     hp: (s) => 28 + Math.floor(s.Endurance * 2.2),
     mp: (s) => 5 + Math.floor(s.Intellect * 1.0),
+    image: "rogue_p.png",
   },
   cleric: {
     name: "Cleric",
     baseStats: { Might: 8, Intellect: 10, Personality: 15, Endurance: 12, Accuracy: 8, Speed: 10, Luck: 10, Dexterity: 11 },
     hp: (s) => 24 + Math.floor(s.Endurance * 1.9),
     mp: (s) => 10 + Math.floor(s.Personality * 2.0),
+    image: "cleric_p.png",
   },
   sorcerer: {
     name: "Sorcerer",
     baseStats: { Might: 6, Intellect: 16, Personality: 8, Endurance: 8, Accuracy: 10, Speed: 12, Luck: 10, Dexterity: 10 },
     hp: (s) => 20 + Math.floor(s.Endurance * 1.6),
     mp: (s) => 10 + Math.floor(s.Intellect * 2.0),
+    image: "sorcerer_p.png",
   },
   druid: {
     name: "Druid",
     baseStats: { Might: 9, Intellect: 12, Personality: 12, Endurance: 10, Accuracy: 10, Speed: 10, Luck: 10, Dexterity: 9 },
     hp: (s) => 22 + Math.floor(s.Endurance * 1.8),
     mp: (s) => 10 + Math.floor(Math.max(s.Intellect, s.Personality) * 1.4),
+    image: "druid_p.png",
   },
   monk: {
     name: "Monk",
     baseStats: { Might: 12, Intellect: 9, Personality: 8, Endurance: 12, Accuracy: 12, Speed: 14, Luck: 10, Dexterity: 12 },
     hp: (s) => 26 + Math.floor(s.Endurance * 2.1),
     mp: (s) => Math.floor(s.Intellect * 0.5),
+    image: "monk_p.png",
   },
 };
 
@@ -117,7 +125,7 @@ const SPELL_DEFS = {
    touchOfDeath: { key: "touchOfDeath", name: "Touch of Death", mpCost: 20, type: "damage", cost: 500,
     allowedClasses: ["sorcerer"]
     },
-   massDistortion: { key: "massDistorition", name: "Mass Distortion", mpCost: 10, type: "damage", cost: 500,
+   massDistortion: { key: "massDistortion", name: "Mass Distortion", mpCost: 10, type: "damage", cost: 500,
     allowedClasses: ["druid"]
    },
    regeneration: { key: "regeneration", name: "Regeneration", mpCost: 25, type: "buff", cost: 400,
@@ -131,7 +139,7 @@ const CLASS_STARTING_SPELLS = {
   archer: ["fireBolt"],
   cleric: ["heal"],
   sorcerer: ["fireBolt"],
-  druid: ["heal", "fireBolt"],
+  druid: ["heal", "lightning"],
   monk: [],
 };
 
@@ -171,6 +179,32 @@ const AREAS = {
       goldMultiplier: 1.0,
       xpMultiplier: 1.0
     }
+  },
+  goblinwatch: {
+  id: "goblinwatch",
+  name: "Goblinwatch Dungeon",
+  description: "A treacherous goblin stronghold where waves of enemies attack relentlessly. No rest between battles!",
+  type: "dungeon", // New area type
+  maxWaves: 5,
+  baseLevel: 3,
+  enemies: ["goblin", "hobgoblin", "bloodSucker"],
+  boss: "goblinKing",
+  unlocks: [], // Can add more dungeons later
+  requirements: ["newSorpigal"],
+  rewards: {
+    goldMultiplier: 1.1,
+    xpMultiplier: 1.1
+  },
+    dungeonReward: {
+    type: "statBoost",
+    target: "party", // or "class:knight" for class-specific
+    stats: {
+      Might: 5,
+      Endurance: 5
+      },
+      description: "+5 Might and +5 Endurance for all heroes"
+    },
+    conditions: [] // No special conditions for first dungeon
   },
   mistyIslands: {
     id: "mistyIslands",
@@ -230,8 +264,20 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(40 + level * 25 + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(3 + level * 1.2),
     goldFormula: (level) => Math.floor(10 + level * 2),
-    xpFormula: (level) => Math.floor(15 + level * 8),
-    variants: ["Scout", "Warrior", "Chieftain"]
+    xpFormula: (level) => Math.floor(15 + level * 8)
+    //variants: ["Scout", "Warrior", "Chieftain"]
+  },
+
+  hobgoblin: {
+    id: "hobgoblin",
+    baseName: "Hobgoblin",
+    type: "humanoid",
+    tier: 1,
+    hpFormula: (level) => Math.floor(45 + level * 30 + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(5 + level * 1.7),
+    goldFormula: (level) => Math.floor(13 + level * 3),
+    xpFormula: (level) => Math.floor(17 + level * 8)
+    //variants: ["Scout", "Warrior", "Chieftain"]
   },
   
   bandit: {
@@ -242,8 +288,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(45 + level * 28 + Math.pow(level, 1.25) * 6),
     attackFormula: (level) => Math.floor(4 + level * 1.3),
     goldFormula: (level) => Math.floor(14 + level * 3),
-    xpFormula: (level) => Math.floor(18 + level * 9),
-    variants: ["Thief", "Outlaw", "Captain"]
+    xpFormula: (level) => Math.floor(18 + level * 9)
+    //variants: ["Thief", "Outlaw", "Captain"]
   },
   
   wolf: {
@@ -254,8 +300,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(35 + level * 22 + Math.pow(level, 1.15) * 4),
     attackFormula: (level) => Math.floor(5 + level * 1.4),
     goldFormula: (level) => Math.floor(6 + level * 1.5),
-    xpFormula: (level) => Math.floor(12 + level * 7),
-    variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+    xpFormula: (level) => Math.floor(12 + level * 7)
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   apprenticeMage: {
@@ -278,8 +324,20 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(50 + level * 30 + Math.pow(level, 1.3) * 7),
     attackFormula: (level) => Math.floor(4 + level * 1.5),
     goldFormula: (level) => Math.floor(10 + level * 2.5),
-    xpFormula: (level) => Math.floor(20 + level * 10),
-    variants: ["Warrior", "Archer", "Mage"]
+    xpFormula: (level) => Math.floor(20 + level * 10)
+    //variants: ["Warrior", "Archer", "Mage"]
+  },
+
+  bloodSucker: {
+    id: "bloodSucker",
+    baseName: "Blood Sucker",
+    type: "Beast",
+    tier: 1,
+    hpFormula: (level) => Math.floor(40 + level * 25 + Math.pow(level, 1.35) * 9.5),
+    attackFormula: (level) => Math.floor(5 + level * 2),
+    goldFormula: (level) => Math.floor(7 + level * 5),
+    xpFormula: (level) => Math.floor(20 + level * 11)
+    //variants: ["Corrupted", "Elite", "Champion"]
   },
   
   // Intermediate Enemies
@@ -291,8 +349,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(80 + level * 45 + Math.pow(level, 1.35) * 10),
     attackFormula: (level) => Math.floor(6 + level * 1.8),
     goldFormula: (level) => Math.floor(16 + level * 4),
-    xpFormula: (level) => Math.floor(25 + level * 12),
-    variants: ["Corrupted", "Elite", "Champion"]
+    xpFormula: (level) => Math.floor(25 + level * 12)
+    //variants: ["Corrupted", "Elite", "Champion"]
   },
 
   brainSucker: {
@@ -351,8 +409,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(60 + level * 35 + Math.pow(level, 1.4) * 8),
     attackFormula: (level) => Math.floor(7 + level * 2.0),
     goldFormula: (level) => Math.floor(15 + level * 3.5),
-    xpFormula: (level) => Math.floor(22 + level * 11),
-    variants: ["Wraith", "Phantom", "Specter"]
+    xpFormula: (level) => Math.floor(22 + level * 11)
+    //variants: ["Wraith", "Phantom", "Specter"]
   },
 
   witchDoctor: {
@@ -411,8 +469,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(90 + level * 50 + Math.pow(level, 1.25) * 12),
     attackFormula: (level) => Math.floor(8 + level * 2.2),
     goldFormula: (level) => Math.floor(20 + level * 5),
-    xpFormula: (level) => Math.floor(28 + level * 14),
-    variants: ["Berserker", "Shaman", "Warlord"]
+    xpFormula: (level) => Math.floor(28 + level * 14)
+    //variants: ["Berserker", "Shaman", "Warlord"]
   },
   
   // Advanced Enemies
@@ -424,8 +482,8 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(120 + level * 65 + Math.pow(level, 1.5) * 15),
     attackFormula: (level) => Math.floor(12 + level * 2.8),
     goldFormula: (level) => Math.floor(35 + level * 8),
-    xpFormula: (level) => Math.floor(40 + level * 18),
-    variants: ["Leviathan", "Kraken Spawn", "Abyssal"]
+    xpFormula: (level) => Math.floor(40 + level * 18)
+    //variants: ["Leviathan", "Kraken Spawn", "Abyssal"]
   },
   
   // Boss Enemies
@@ -438,9 +496,23 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(300 + level * 150 + Math.pow(level, 1.6) * 50),
     attackFormula: (level) => Math.floor(15 + level * 4.0),
     goldFormula: (level) => Math.floor(100 + level * 25),
-    xpFormula: (level) => Math.floor(150 + level * 50),
-    variants: ["Ancient", "Lich King", "Death Knight"]
-  }
+    xpFormula: (level) => Math.floor(150 + level * 50)
+    //variants: ["Ancient", "Lich King", "Death Knight"]
+  },
+  goblinKing: {
+  id: "goblinKing",
+  baseName: "Goblin King",
+  type: "humanoid",
+  tier: "boss",
+  isBoss: true,
+  hpFormula: (level) => Math.floor(160 + level * 25 + Math.pow(level, 1.2) * 5),
+  attackFormula: (level) => Math.floor(12 + level * 2.5),
+  goldFormula: (level) => Math.floor(60 + level * 3),
+  xpFormula: (level) => Math.floor(50 + level * 10),
+  variants: ["Warlord", "Tyrant", "Destroyer"],
+  // Special abilities
+  specialAbilities: ["doubleDamageChance"]
+}
 };
 
 // Wave Configuration System
@@ -743,37 +815,92 @@ function startGame() {
 
 function renderPartyBar() {
   partyBarRoot.innerHTML = "";
+
   for (const character of state.party) {
     const classDef = CLASS_DEFS[character.classKey];
+
     const el = document.createElement("div");
     el.className = "portrait";
-    el.setAttribute("data-index", String(character.id));
+    el.dataset.index = character.id;
+
+    // First, set the innerHTML to create all the child elements
     el.innerHTML = `
       <div class="face" aria-hidden="true"></div>
       <div class="info">
-        <div class="name">Hero ${character.id + 1}</div>
-        <div class="class">${classDef.name} • L${character.level} • XP ${character.xp}/${character.nextLevelXp}</div>
+        <div class="name"></div>
+        <div class="class"></div>
         <div class="bars">
-          <div class="bar hp"><div class="fill" style="width:${(character.hp / character.maxHp) * 100}%"></div><div class="bar-text">HP ${character.hp} / ${character.maxHp}</div></div>
-          <div class="bar mp"><div class="fill" style="width:${character.maxMp === 0 ? 0 : (character.mp / character.maxMp) * 100}%"></div><div class="bar-text">MP ${character.mp} / ${character.maxMp}</div></div>
+          <div class="bar hp">
+            <div class="fill"></div>
+            <div class="bar-text"></div>
+          </div>
+          <div class="bar mp">
+            <div class="fill"></div>
+            <div class="bar-text"></div>
+          </div>
         </div>
       </div>
     `;
+
+    // Now, find the 'face' element and set its style.
+    // This part should be placed AFTER el.innerHTML is set.
+    if (classDef.image) {
+      el.querySelector(".face").style.backgroundImage = `url('images/${classDef.image}')`;
+    }
+
+    // Store references directly on the element for quick updates
+    el._name = el.querySelector(".name");
+    el._class = el.querySelector(".class");
+    el._hpFill = el.querySelector(".bar.hp .fill");
+    el._hpText = el.querySelector(".bar.hp .bar-text");
+    el._mpFill = el.querySelector(".bar.mp .fill");
+    el._mpText = el.querySelector(".bar.mp .bar-text");
+
+    // Click listener stays intact
+    el.addEventListener("click", () => {
+      selectCharacter(character.id);
+    });
+
     partyBarRoot.appendChild(el);
   }
 
-  // Open character panel on click
-  partyBarRoot.querySelectorAll(".portrait").forEach((el) => {
-    el.addEventListener("click", () => {
-      const idx = Number(el.getAttribute("data-index"));
-      selectCharacter(idx);
-    });
-  });
+  updatePartyBars(); // Fill in the initial data
 }
 
 function updatePartyBars() {
-  // Re-render for simplicity
-  renderPartyBar();
+  for (const character of state.party) {
+    const el = partyBarRoot.querySelector(`.portrait[data-index="${character.id}"]`);
+    if (!el) continue;
+
+    const classDef = CLASS_DEFS[character.classKey];
+    if (classDef.image) {
+      el.querySelector(".face").style.backgroundImage = `url('images/${classDef.image}')`;
+    }
+
+    el._name.textContent = `Hero ${character.id + 1}`;
+    el._class.textContent = `${classDef.name} • L${character.level} • XP ${character.xp}/${character.nextLevelXp}`;
+
+    const hpPercent = (character.hp / character.maxHp) * 100;
+    const mpPercent = character.maxMp === 0 ? 0 : (character.mp / character.maxMp) * 100;
+
+    el._hpFill.style.width = `${hpPercent}%`;
+    el._hpText.textContent = `HP ${character.hp} / ${character.maxHp}`;
+    el._mpFill.style.width = `${mpPercent}%`;
+    el._mpText.textContent = `MP ${character.mp} / ${character.maxMp}`;
+  }
+}
+
+function flashDamageOnCharacter(id) {
+  const portrait = partyBarRoot.querySelector(`.portrait[data-index="${id}"]`);
+  if (!portrait) return;
+
+  // Add the class to start the flash animation
+  portrait.classList.add("damage-flash");
+
+  // Remove the class after a short delay to allow the animation to play
+  setTimeout(() => {
+    portrait.classList.remove("damage-flash");
+  }, 300); // Set a short delay, e.g., 300ms, to match the CSS transition duration
 }
 
 // Weighted random selection for variants
@@ -931,8 +1058,17 @@ function renderEnemyListWithVariants() {
   // Filter out dead enemies for cleaner UI
   const livingEnemies = state.enemies.filter(e => e.hp > 0);
   
+  // Get the current area data
+  const currentArea = AREAS[state.currentAreaId];
+  
   if (livingEnemies.length === 0) {
-    enemyListEl.innerHTML = '<div class="no-enemies">All enemies defeated!</div>';
+    // Check if the current area is a dungeon
+    if (currentArea && currentArea.type === "dungeon") {
+      enemyListEl.innerHTML = '<div class="no-enemies">Enemies defeated. Searching deeper...</div>';
+    } else {
+      // Default message for regular areas
+      enemyListEl.innerHTML = '<div class="no-enemies">All enemies defeated!</div>';
+    }
     return;
   }
   
@@ -1135,6 +1271,24 @@ function computeClickDamage() {
   return damage;
 }
 
+// Enhanced enemy attack function with boss special abilities
+function computeEnemyAttackDamageWithVariantAndAbilities(enemy = null) {
+  let baseDamage = computeEnemyAttackDamageWithVariant(enemy);
+  
+  if (enemy && enemy.specialAbilities) {
+    // Handle special abilities
+    if (enemy.specialAbilities.includes("doubleDamageChance")) {
+      // Goblin King's double damage chance (30% chance)
+      if (Math.random() < 0.3) {
+        console.log(`${enemy.name} unleashes a devastating blow!`);
+        baseDamage *= 2;
+      }
+    }
+  }
+  
+  return baseDamage;
+}
+
 // Enhanced enemy attack damage calculation using variant attack values
 function computeEnemyAttackDamageWithVariant(enemy = null) {
   if (enemy && enemy.attack) {
@@ -1263,27 +1417,20 @@ function onEnemyDamaged(index) {
   renderEnemyListWithVariants();
   
   if (enemy.hp <= 0) {
-    // Enemy died - give rewards
-    // Calculate the total pickPocket bonus from all living characters
+    // Enemy died - give rewards (same as before)
     const pickPocketBonus = livingMembers.reduce((total, character) => {
       return total + (character.skills.pickPocket || 0) * 0.1;
     }, 0);
 
-    // Apply the bonus to the gold dropped
     const bonusGold = Math.round(enemy.rewardGold * pickPocketBonus);
     state.gold += enemy.rewardGold + bonusGold;
-
-    //state.gold += enemy.rewardGold;
     goldEl.textContent = String(state.gold);
     
-    // Give XP only to living characters
-    
-    // Give XP with a bonus for characters with the 'Learning' skill
+    // Give XP with learning bonus
     livingMembers.forEach(c => {
       const learningRank = c.skills.learning || 0;
-      const learningBonus = learningRank * 0.1; // 10% bonus per rank
+      const learningBonus = learningRank * 0.1;
       const finalXp = Math.round(enemy.rewardXp * (1 + learningBonus));
-      //console.log(finalXp);
       c.xp += finalXp;
     });
     
@@ -1297,9 +1444,8 @@ function onEnemyDamaged(index) {
     
     // Check if all enemies are defeated
     if (state.enemies.every((e) => e.hp <= 0)) {
-      // Small delay to let UI update
       setTimeout(() => {
-        showWaveCompleteMenu();
+        showWaveCompleteMenuOrContinue(); // Use new function
       }, 200);
     }
   }
@@ -1329,23 +1475,24 @@ function beginEnemyAttacksWithVariants() {
     const attackingEnemy = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
     const target = livingMembers[Math.floor(Math.random() * livingMembers.length)];
     
-    // Check for dodge if system is available
+    // Check for dodge
     if (typeof attemptDodge === 'function' && attemptDodge(target)) {
       console.log(`${target.id + 1} dodged attack from ${attackingEnemy.name}!`);
       updatePartyBars();
       return;
     }
     
-    // Use variant-aware damage calculation
-    const dmg = computeEnemyAttackDamageWithVariant(attackingEnemy);
+    // Use enhanced damage calculation with special abilities
+    const dmg = computeEnemyAttackDamageWithVariantAndAbilities(attackingEnemy);
     target.hp = Math.max(0, target.hp - dmg);
     
-    // Log variant attacks for feedback
-    if (attackingEnemy.isVariant) {
-      console.log(`${attackingEnemy.name} attacks ${target.id + 1} for ${dmg} damage!`);
+    // Log special attacks
+    if (attackingEnemy.specialAbilities && attackingEnemy.specialAbilities.includes("doubleDamageChance") && dmg > attackingEnemy.attack) {
+      console.log(`${attackingEnemy.name}'s devastating blow deals ${dmg} damage to Hero ${target.id + 1}!`);
     }
     
     updatePartyBars();
+    flashDamageOnCharacter(target.id);
     
     if (getLivingPartyMembers().length === 0) {
       stopEnemyAttacks();
@@ -1480,7 +1627,8 @@ function getAvailableAreas() {
         baseLevel: area.baseLevel,
         maxWaves: area.maxWaves,
         isCompleted: completedAreas.includes(areaId),
-        isUnlocked: true
+        isUnlocked: true,
+        type: area.type //new
       });
     }
   }
@@ -1596,6 +1744,142 @@ function showWaveCompleteMenu() {
   });
 }
 
+// Modified wave completion handling for dungeons
+function showWaveCompleteMenuOrContinue() {
+  const currentArea = AREAS[state.currentAreaId];
+  
+  // Check if this is a dungeon
+  if (currentArea && currentArea.type === "dungeon") {
+    const nextWave = state.currentWave + 1;
+    
+    // Check if dungeon is complete
+    if (nextWave > currentArea.maxWaves) {
+      showDungeonCompleteMenu();
+      return;
+    }
+    
+    // In dungeons, automatically proceed to next wave after a brief delay
+    setTimeout(() => {
+      console.log(`Dungeon continues... Wave ${nextWave} incoming!`);
+      setupWaveNew(nextWave);
+      beginEnemyAttacksWithVariants();
+      beginAutoAttacks();
+    }, 1500); // 1.5 second delay for dramatic effect
+    
+  } else {
+    // Regular areas show the normal menu
+    showWaveCompleteMenu();
+  }
+}
+
+// Dungeon completion menu with stat rewards
+function showDungeonCompleteMenu() {
+  stopEnemyAttacks();
+  stopAutoAttacks();
+  
+  const currentArea = AREAS[state.currentAreaId];
+  const menu = document.createElement("div");
+  menu.id = "dungeon-complete-menu";
+  menu.className = "modal-overlay";
+  
+  // Apply dungeon reward
+  applyDungeonReward(currentArea.dungeonReward);
+  
+  // Mark dungeon as completed
+  if (!state.completedAreas.includes(state.currentAreaId)) {
+    state.completedAreas.push(state.currentAreaId);
+  }
+  
+  menu.innerHTML = `
+    <div class="modal-content">
+      <div class="dungeon-complete-header">
+        <h2>🏰 ${currentArea.name} Conquered! 🏰</h2>
+        <div class="victory-message">
+          The dungeon trembles as its master falls! Your party emerges stronger than ever.
+        </div>
+      </div>
+      
+      <div class="dungeon-reward-display">
+        <h3>🎁 Dungeon Reward Claimed!</h3>
+        <div class="reward-description">${currentArea.dungeonReward.description}</div>
+        <div class="reward-details">
+          ${Object.entries(currentArea.dungeonReward.stats).map(([stat, value]) => 
+            `<span class="stat-boost">+${value} ${stat}</span>`
+          ).join(' ')}
+        </div>
+      </div>
+      
+      <div class="menu-buttons">
+        <button class="btn large primary" data-action="choose-area">Choose Next Adventure</button>
+        <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
+        <button class="btn large" data-action="buy-spells">Buy Spells</button>
+        <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  // Add event listeners
+  menu.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.getAttribute("data-action");
+      closeDungeonCompleteMenu();
+      
+      if (action === "choose-area") {
+        showAreaSelectionMenu();
+      } else {
+        handleWaveMenuActionNew(action);
+      }
+    });
+  });
+}
+
+function closeDungeonCompleteMenu() {
+  const menu = document.getElementById("dungeon-complete-menu");
+  if (menu) menu.remove();
+}
+
+// Apply dungeon stat rewards
+function applyDungeonReward(reward) {
+  if (!reward || reward.type !== "statBoost") return;
+  
+  if (reward.target === "party") {
+    // Apply to all party members
+    state.party.forEach(character => {
+      Object.entries(reward.stats).forEach(([stat, value]) => {
+        character.baseStats[stat] += value;
+      });
+      computeTotals(character);
+      // Heal to new max HP if health increased
+      if (reward.stats.Endurance) {
+        character.hp = character.maxHp;
+      }
+    });
+    console.log("All party members receive stat bonuses!");
+  } else if (reward.target.startsWith("class:")) {
+    // Apply to specific class only
+    const targetClass = reward.target.split(":")[1];
+    state.party.forEach(character => {
+      if (character.classKey === targetClass) {
+        Object.entries(reward.stats).forEach(([stat, value]) => {
+          character.baseStats[stat] += value;
+        });
+        computeTotals(character);
+        if (reward.stats.Endurance) {
+          character.hp = character.maxHp;
+        }
+      }
+    });
+    console.log(`${targetClass} characters receive stat bonuses!`);
+  }
+  
+  // Update UI
+  updatePartyBars();
+  renderSidebar();
+}
+
+
 function showAreaCompleteMenu() {
   const currentArea = AREAS[state.currentAreaId];
   const availableAreas = getAvailableAreas();
@@ -1660,6 +1944,7 @@ function closeWaveCompleteMenu() {
   }
 }
 
+
 function showAreaSelectionMenu() {
   const availableAreas = getAvailableAreas();
   
@@ -1667,60 +1952,87 @@ function showAreaSelectionMenu() {
   menu.id = "area-selection-menu";
   menu.className = "modal-overlay";
   
-  const areaButtons = availableAreas.map(area => {
-    const completedBadge = area.isCompleted ? '<span class="pill completed">✓ Completed</span>' : '';
-    return `
-      <div class="area-option">
-        <div class="area-info">
-          <h3>${area.name}</h3>
-          <p>${area.description}</p>
-          <div class="area-stats">
-            <span class="pill">Level ${area.baseLevel}+</span>
-            <span class="pill">${area.maxWaves} Waves</span>
-            ${completedBadge}
-          </div>
+const areaButtons = availableAreas.map(area => {
+  const isDungeon = area.type === "dungeon";
+  const isCompleted = state.completedAreas.includes(area.id); // unified check
+  const isDisabled = isDungeon && isCompleted;
+
+  const completedBadge = isCompleted
+    ? '<span class="pill completed">✓ Completed</span>'
+    : '';
+  const dungeonBadge = isDungeon
+    ? '<span class="pill dungeon">⚔️ Dungeon</span>'
+    : '';
+
+  const areaTypeClass = isDungeon ? "dungeon-area" : "regular-area";
+  const disabledClass = isDisabled ? "disabled" : "";
+  //console.log(`Area: ${area.name}, isDungeon: ${isDungeon}, isCompleted: ${isCompleted}, isDisabled: ${isDisabled}, type: ${area.type}`);
+  //console.log(area);
+
+  return `
+    <div class="area-option ${areaTypeClass} ${disabledClass}">
+      <div class="area-info">
+        <h3>${area.name}</h3>
+        <p>${area.description}</p>
+        <div class="area-stats">
+          <span class="pill">Level ${area.baseLevel}+</span>
+          <span class="pill">${area.maxWaves} Waves</span>
+          ${dungeonBadge}
+          ${completedBadge}
         </div>
-        <button class="btn" data-action="select-area" data-area="${area.id}">Enter Area</button>
+        ${isDungeon ? '<div class="dungeon-warning">⚠️ No rest between waves!</div>' : ''}
       </div>
-    `;
-  }).join("");
-  
-  menu.innerHTML = `
-    <div class="modal-content large">
-      <div class="modal-header">
-        <h2>Choose Your Adventure</h2>
-        <span class="pill">Select an area to explore</span>
-      </div>
-      <div class="area-list">
-        ${areaButtons}
-      </div>
-      <div class="modal-footer">
-        <button class="btn" data-action="cancel">Cancel</button>
-      </div>
+      <button 
+        class="btn" 
+        data-action="select-area" 
+        data-area="${area.id}" 
+        ${isDisabled ? 'disabled aria-disabled="true"' : ''}
+      >
+        ${isDisabled ? 'Conquered!' : 'Enter Area'}
+      </button>
     </div>
   `;
-  
-  document.body.appendChild(menu);
-  
-  menu.querySelectorAll("[data-action='select-area']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const areaId = btn.getAttribute("data-area");
-      closeAreaSelectionMenu();
-      
-      // Start in the selected area
-      state.currentAreaId = areaId;
-      state.currentWave = 1;
-      setupWaveNew(1);
-      beginEnemyAttacksWithVariants();
-      beginAutoAttacks();
-    });
-  });
-  
-  menu.querySelector("[data-action='cancel']").addEventListener("click", () => {
+}).join("");
+
+// Insert into DOM
+menu.innerHTML = `
+  <div class="modal-content large">
+    <div class="modal-header">
+      <h2>Choose Your Adventure</h2>
+      <span class="pill">Select an area to explore</span>
+    </div>
+    <div class="area-list">
+      ${areaButtons}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-action="cancel">Cancel</button>
+    </div>
+  </div>
+`;
+
+document.body.appendChild(menu);
+
+// Attach listeners only to enabled buttons
+menu.querySelectorAll("[data-action='select-area']:not([disabled])").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const areaId = btn.getAttribute("data-area");
     closeAreaSelectionMenu();
-    showWaveCompleteMenu(); // Return to previous menu
+    state.currentAreaId = areaId;
+    state.currentWave = 1;
+    setupWaveNew(1);
+    beginEnemyAttacksWithVariants();
+    beginAutoAttacks();
   });
+});
+
+// Cancel button
+menu.querySelector("[data-action='cancel']").addEventListener("click", () => {
+  closeAreaSelectionMenu();
+  showWaveCompleteMenu();
+});
+
 }
+
 
 function closeAreaSelectionMenu() {
   const menu = document.getElementById("area-selection-menu");
@@ -1788,23 +2100,23 @@ function showSkillsMenu() {
   const menu = document.createElement("div");
   menu.id = "skills-menu";
   menu.className = "modal-overlay";
-  
+
   let skillsContent = "";
   for (let i = 0; i < state.party.length; i++) {
     const character = state.party[i];
     const classDef = CLASS_DEFS[character.classKey] || CLASS_DEFS[character.classKey];
-    
+
     // Filter skills by class
-    const availableSkills = Object.values(SKILL_DEFS).filter(skill => 
+    const availableSkills = Object.values(SKILL_DEFS).filter(skill =>
       skill.allowedClasses.includes(character.classKey)
     );
-    
+
     const skillRows = availableSkills.map((sk) => {
       const rank = character.skills[sk.key] || 0;
       const cost = getSkillUpgradeCost(sk.baseCost, rank);
       const disabled = state.gold < cost ? "disabled" : "";
       return `
-        <div class="skill-row">
+        <div class="skill-row" data-skill-key="${sk.key}">
           <div class="skill-info">
             <div class="skill-name">${sk.name} <span class="pill">Rank ${rank}</span></div>
             <div class="skill-desc">${sk.desc} • Cost: ${cost} gold</div>
@@ -1813,7 +2125,7 @@ function showSkillsMenu() {
         </div>
       `;
     }).join("");
-    
+
     skillsContent += `
       <div class="character-section">
         <h3>Hero ${i + 1} • ${classDef.name}</h3>
@@ -1821,14 +2133,14 @@ function showSkillsMenu() {
       </div>
     `;
   }
-  
+
   menu.innerHTML = `
     <div class="modal-content large">
       <div class="modal-header">
         <h2>Upgrade Skills</h2>
-        <span class="pill">Gold: ${state.gold}</span>
+        <span class="pill" id="gold-display">Gold: ${state.gold}</span>
       </div>
-      <div class="skills-content">
+      <div class="skills-content" id="skills-list">
         ${skillsContent}
       </div>
       <div class="modal-footer">
@@ -1836,23 +2148,65 @@ function showSkillsMenu() {
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(menu);
-  
-  // Event listeners remain the same as before
+
+  // Event listener now calls a more efficient update function
   menu.querySelectorAll("[data-action='upgrade-skill']").forEach(btn => {
     btn.addEventListener("click", () => {
       const characterIndex = parseInt(btn.getAttribute("data-character"));
       const skillKey = btn.getAttribute("data-skill");
       upgradeCharacterSkill(characterIndex, skillKey);
-      closeSkillsMenu();
-      showSkillsMenu();
+      
+      // Instead of closing and reopening the menu, just update the changed parts
+      updateSkillsMenuUI();
     });
   });
-  
+
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     closeSkillsMenu();
     showWaveCompleteMenu();
+  });
+}
+
+// Helper function to efficiently update the UI
+function updateSkillsMenuUI() {
+  const skillsListEl = document.getElementById("skills-list");
+  const goldDisplayEl = document.getElementById("gold-display");
+
+  if (!skillsListEl || !goldDisplayEl) {
+    // If the menu isn't open, do nothing
+    return;
+  }
+
+  // Update the gold display
+  goldDisplayEl.textContent = `Gold: ${state.gold}`;
+
+  // Loop through all characters and skills to update their content
+  state.party.forEach((character, charIndex) => {
+    const availableSkills = Object.values(SKILL_DEFS).filter(skill =>
+      skill.allowedClasses.includes(character.classKey)
+    );
+
+    availableSkills.forEach(sk => {
+      const row = skillsListEl.querySelector(`[data-character="${charIndex}"][data-skill="${sk.key}"]`).closest('.skill-row');
+      if (row) {
+        const rank = character.skills[sk.key] || 0;
+        const cost = getSkillUpgradeCost(sk.baseCost, rank);
+        const disabled = state.gold < cost ? "disabled" : "";
+
+        // Update rank, cost, and button state
+        row.querySelector('.skill-name .pill').textContent = `Rank ${rank}`;
+        row.querySelector('.skill-desc').textContent = `${sk.desc} • Cost: ${cost} gold`;
+
+        const button = row.querySelector('button');
+        if (disabled) {
+          button.setAttribute('disabled', '');
+        } else {
+          button.removeAttribute('disabled');
+        }
+      }
+    });
   });
 }
 
@@ -1898,6 +2252,7 @@ function upgradeCharacterSkill(characterIndex, skillKey) {
 }
 
 // Spell shop menu
+// Spell shop menu
 function showSpellShopMenu() {
   const menu = document.createElement("div");
   menu.id = "spell-shop-menu";
@@ -1908,38 +2263,19 @@ function showSpellShopMenu() {
     const character = state.party[i];
     const classDef = CLASS_DEFS[character.classKey];
     
-  const availableSpells = Object.values(SPELL_DEFS).filter(spell => 
-    !character.knownSpells.includes(spell.key) && spell.allowedClasses.includes(character.classKey)
-  );
-    
-    let spellRows = "";
-    if (availableSpells.length > 0) {
-      spellRows = availableSpells.map((spell) => {
-        const disabled = state.gold < spell.cost ? "disabled" : "";
-        return `
-          <div class="spell-row">
-            <div class="spell-info">
-              <div class="spell-name">${spell.name}</div>
-              <div class="spell-desc">MP Cost: ${spell.mpCost} • Type: ${spell.type} • Cost: ${spell.cost} gold</div>
-            </div>
-            <button class="btn small" data-action="buy-spell" data-character="${i}" data-spell="${spell.key}" ${disabled}>Buy</button>
-          </div>
-        `;
-      }).join("");
-    } else {
-      spellRows = '<div class="hint">All spells learned!</div>';
-    }
-    
+    // Create the known spells and available spells HTML
     spellsContent += `
-      <div class="character-section">
+      <div class="character-section" data-character-index="${i}">
         <h3>Hero ${i + 1} • ${classDef.name}</h3>
         <div class="known-spells">
-          <strong>Known Spells:</strong> ${character.knownSpells.length > 0 ? 
-            character.knownSpells.map(key => SPELL_DEFS[key].name).join(", ") : 
-            "None"}
+          <strong>Known Spells:</strong> <span class="known-spells-list">${
+            character.knownSpells.length > 0
+              ? character.knownSpells.map(key => SPELL_DEFS[key].name).join(", ")
+              : "None"
+          }</span>
         </div>
         <div class="available-spells">
-          ${spellRows}
+          ${generateAvailableSpellsHtml(character, i)}
         </div>
       </div>
     `;
@@ -1949,7 +2285,7 @@ function showSpellShopMenu() {
     <div class="modal-content large">
       <div class="modal-header">
         <h2>Buy Spells</h2>
-        <span class="pill">Gold: ${state.gold}</span>
+        <span class="pill" id="gold-display">Gold: ${state.gold}</span>
       </div>
       <div class="spells-content">
         ${spellsContent}
@@ -1967,15 +2303,84 @@ function showSpellShopMenu() {
     btn.addEventListener("click", () => {
       const characterIndex = parseInt(btn.getAttribute("data-character"));
       const spellKey = btn.getAttribute("data-spell");
-      buySpellForCharacter(characterIndex, spellKey);
-      closeSpellShopMenu();
-      showSpellShopMenu(); // Refresh the menu
+      
+      // Assuming buySpellForCharacter returns true on success
+      if (buySpellForCharacter(characterIndex, spellKey)) {
+        // Instead of rebuilding the whole menu, just update the UI
+        console.log("After purchase:", state.party[characterIndex].knownSpells);
+        updateSpellShopUI();
+      }
     });
   });
   
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     closeSpellShopMenu();
-    showWaveCompleteMenu(); // Return to wave completion menu
+    showWaveCompleteMenu();
+  });
+}
+
+// Helper function to generate the HTML for available spells
+function generateAvailableSpellsHtml(character, characterIndex) {
+  const availableSpells = Object.values(SPELL_DEFS).filter(
+    spell => !character.knownSpells.includes(spell.key) && spell.allowedClasses.includes(character.classKey)
+  );
+
+  if (availableSpells.length > 0) {
+    return availableSpells.map(spell => {
+      const disabled = state.gold < spell.cost ? "disabled" : "";
+      return `
+        <div class="spell-row" data-spell-key="${spell.key}">
+          <div class="spell-info">
+            <div class="spell-name">${spell.name}</div>
+            <div class="spell-desc">MP Cost: ${spell.mpCost} • Type: ${spell.type} • Cost: ${spell.cost} gold</div>
+          </div>
+          <button class="btn small" data-action="buy-spell" data-character="${characterIndex}" data-spell="${spell.key}" ${disabled}>Buy</button>
+        </div>
+      `;
+    }).join("");
+  } else {
+    return '<div class="hint">All spells learned!</div>';
+  }
+}
+
+// New function to update the spell shop UI after a purchase
+function updateSpellShopUI() {
+  const goldDisplay = document.getElementById("gold-display");
+  const spellsContent = document.querySelector(".spells-content");
+
+  if (!goldDisplay || !spellsContent) {
+    return;
+  }
+
+  // Update gold count
+  goldDisplay.textContent = `Gold: ${state.gold}`;
+
+  // Loop through each character section and update it
+  state.party.forEach((character, charIndex) => {
+    const characterSection = spellsContent.querySelector(`[data-character-index="${charIndex}"]`);
+    if (!characterSection) return;
+
+    // Update the list of known spells
+    const knownSpellsList = characterSection.querySelector(".known-spells-list");
+    knownSpellsList.textContent = character.knownSpells.length > 0
+      ? character.knownSpells.map(key => SPELL_DEFS[key].name).join(", ")
+      : "None";
+
+    // Rebuild the list of available spells for this character
+    const availableSpellsContainer = characterSection.querySelector(".available-spells");
+    availableSpellsContainer.innerHTML = generateAvailableSpellsHtml(character, charIndex);
+  });
+
+  // Re-add event listeners for the newly created buttons
+  spellsContent.querySelectorAll("[data-action='buy-spell']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const characterIndex = parseInt(btn.getAttribute("data-character"));
+      const spellKey = btn.getAttribute("data-spell");
+      if (buySpellForCharacter(characterIndex, spellKey)) {
+        console.log("After purchase:", state.party[characterIndex].knownSpells);
+        updateSpellShopUI();
+      }
+    });
   });
 }
 
@@ -2000,6 +2405,7 @@ function buySpellForCharacter(characterIndex, spellKey) {
     goldEl.textContent = String(state.gold);
     character.knownSpells.push(spellKey);
     renderSidebar();
+    return true;
   }
 }
 
@@ -2219,7 +2625,13 @@ function castSpell(character, spellKey) {
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
         break;
       case "lightning":
-        power = 15 + Math.floor(character.totalStats.Intellect * 1.0 * spMult);
+        // High-variance damage calculation
+        // Base damage is now lower than Firebolt to make the variance more impactful
+        let basePower = 8 + Math.floor(character.totalStats.Intellect * 0.7 * spMult);
+        // Random multiplier between 0.5 and 2.5
+        const variance = (Math.random() * 2.5) + 0.5; // This gives a range from 0.5 to 3.0
+        power = Math.floor(basePower * variance);
+        console.log(power);
         break;
       case "meteor":
         power = 25 + Math.floor(character.totalStats.Intellect * 1.5 * spMult);
@@ -2231,7 +2643,7 @@ function castSpell(character, spellKey) {
         break;
       case "massDistortion":
         specialEffect = "percentDamage";
-        targetAll = true;
+        //targetAll = true;
         break;
       default:
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
@@ -2241,7 +2653,7 @@ function castSpell(character, spellKey) {
       state.enemies.forEach((enemy, idx) => {
         if (enemy.hp > 0) {
           if (specialEffect === "percentDamage") {
-            // Mass Distortion - 10% of enemy's total HP
+            
             const percentDamage = Math.floor(enemy.maxHp * 0.10);
             enemy.hp = Math.max(0, enemy.hp - percentDamage);
           } else {
@@ -2264,6 +2676,7 @@ function castSpell(character, spellKey) {
       
       if (idx >= 0) {
         const enemy = state.enemies[idx];
+        
         if (specialEffect === "instantKill") {
           // Touch of Death - chance for instant kill
           const killChance = enemy.isBoss ? 0.10 : 0.20; // 10% boss, 20% normal
@@ -2273,6 +2686,12 @@ function castSpell(character, spellKey) {
           } else {
             enemy.hp = Math.max(0, enemy.hp - power);
           }
+        } else if (specialEffect === "percentDamage") {
+            // Apply Mass Distortion's percent damage to a single enemy
+            const percentDamage = Math.floor(enemy.maxHp * 0.10);
+            enemy.hp = Math.max(0, enemy.hp - percentDamage);
+            console.log(percentDamage);
+            console.log(enemy.maxHp);
         } else {
           enemy.hp = Math.max(0, enemy.hp - power);
         }
@@ -2312,7 +2731,7 @@ function castSpell(character, spellKey) {
       
       const target = healTargets[0] || character;
       target.hp = Math.min(target.maxHp, target.hp + amount);
-      
+      flashHealOnCharacter(target.id);
       // If we just revived someone, restart auto attacks
       if (target.hp > 0 && !state.autoAttackTimerId) {
         beginAutoAttacks();
@@ -2350,11 +2769,25 @@ function castSpell(character, spellKey) {
   }
 }
 
+function flashHealOnCharacter(id) {
+  const portrait = partyBarRoot.querySelector(`.portrait[data-index="${id}"]`);
+  if (!portrait) return;
+
+  // Add the class to start the flash animation
+  portrait.classList.add("heal-flash");
+
+  // Remove the class after a short delay to allow the animation to play
+  setTimeout(() => {
+    portrait.classList.remove("heal-flash");
+  }, 300); // Set a short delay, e.g., 300ms, to match the CSS transition duration
+}
+
 // Regeneration system
 function startRegenerationEffect(caster, spellMultiplier) {
   // Clear any existing regeneration
   if (state.regenerationTimerId) {
     clearInterval(state.regenerationTimerId);
+    removeRegenGlow(); // Remove glow from previous effect
   }
   
   const healPerTick = 5 + Math.floor(caster.totalStats.Personality * 0.4 * spellMultiplier);
@@ -2364,6 +2797,9 @@ function startRegenerationEffect(caster, spellMultiplier) {
   let currentTick = 0;
   
   console.log(`Regeneration started - ${healPerTick} HP every 2 seconds for 30 seconds`);
+  
+  // Add the healing glow to all portraits when the effect starts
+  addRegenGlow();
   
   state.regenerationTimerId = setInterval(() => {
     currentTick++;
@@ -2380,9 +2816,26 @@ function startRegenerationEffect(caster, spellMultiplier) {
       clearInterval(state.regenerationTimerId);
       state.regenerationTimerId = null;
       renderSidebar();
+      removeRegenGlow(); // Remove the glow when the effect ends
       console.log("Regeneration effect ended");
     }
   }, tickInterval);
+}
+
+// Helper function to add the visual effect
+function addRegenGlow() {
+  const portraits = partyBarRoot.querySelectorAll('.portrait');
+  portraits.forEach(portrait => {
+    portrait.classList.add("regen-glow");
+  });
+}
+
+// Helper function to remove the visual effect
+function removeRegenGlow() {
+  const portraits = partyBarRoot.querySelectorAll('.portrait');
+  portraits.forEach(portrait => {
+    portrait.classList.remove("regen-glow");
+  });
 }
 
 // Game Over menu with Might & Magic style message
@@ -2522,4 +2975,3 @@ function restartEntireGame() {
   
   console.log("Started new adventure!");
 }
-
