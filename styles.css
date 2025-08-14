@@ -210,6 +210,22 @@ body {
   }
 }
 
+.revive-flash {
+  animation: revive-gold-flash 0.3s;
+}
+
+@keyframes revive-gold-flash {
+  0% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 10px 5px #ffd700; /* Gold color */
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 /* Normal hit flash */
 .damage-flash {
   animation: damageFlash 0.4s ease-in-out;
