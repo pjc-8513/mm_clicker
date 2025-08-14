@@ -130,7 +130,10 @@ const SPELL_DEFS = {
     allowedClasses: ["druid"]
    },
    regeneration: { key: "regeneration", name: "Regeneration", mpCost: 25, type: "buff", cost: 400,
-    allowedClasses: ["cleric"]
+    allowedClasses: ["cleric", "monk"]
+   },
+   revive: { key: "revive", name: "Revive", mpCost: 40, type: "heal", cost: 200,
+    allowedClasses: ["cleric", "monk", "paladin"]
    },
 };
 
@@ -610,7 +613,8 @@ function createCharacter(id, classKey) {
       dualWield: 0, pickPocket: 0, learning: 0
      },
     knownSpells: [...CLASS_STARTING_SPELLS[classKey]],
-    quickstepActive: false
+    quickstepActive: false,
+    image: classDef.image
   };
 }
 
@@ -875,7 +879,8 @@ function updatePartyBars() {
 
     const classDef = CLASS_DEFS[character.classKey];
     if (classDef.image) {
-      el.querySelector(".face").style.backgroundImage = `url('images/${classDef.image}')`;
+      const image = character.hp > 0 ? `url('images/${CLASS_DEFS[character.classKey].image}')` : "url('images/dead_p.png')";
+      el.querySelector(".face").style.backgroundImage = image;
     }
 
     el._name.textContent = `Hero ${character.id + 1}`;
@@ -1353,10 +1358,14 @@ function performAutoHeal() {
     
     if (healSpells.length === 0) continue;
     
-    // Find party members under 20% health (including dead = 0%)
-    const needHealing = state.party.filter(member => {
-      const healthPercent = member.hp / member.maxHp;
-      return healthPercent < 0.2; // Under 20% health
+      // Find party members who are alive and under 20% health
+      const needHealing = state.party.filter(member => {
+        // A living character is one whose HP is greater than 0
+        const isLiving = member.hp > 0;
+        const healthPercent = member.hp / member.maxHp;
+        
+        // Only return members who are living and under 20% health
+        return isLiving && healthPercent < 0.2; 
     }).sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp)); // Lowest HP% first
     
     if (needHealing.length === 0) continue;
@@ -1500,12 +1509,15 @@ function beginEnemyAttacksWithVariants() {
     // Use enhanced damage calculation with special abilities
     const dmg = computeEnemyAttackDamageWithVariantAndAbilities(attackingEnemy);
     target.hp = Math.max(0, target.hp - dmg);
-    
+    if (target.hp == 0) {
+      renderSidebar();
+    }
     // Log special attacks
     if (attackingEnemy.specialAbilities && attackingEnemy.specialAbilities.includes("doubleDamageChance") && dmg > attackingEnemy.attack) {
       console.log(`${attackingEnemy.name}'s devastating blow deals ${dmg} damage to Hero ${target.id + 1}!`);
     }
-    
+    // console.log(target);
+    // target.image = 'images/dead_p.png';
     updatePartyBars();
     flashDamageOnCharacter(target.id);
     
@@ -1730,22 +1742,28 @@ function migrateToNewSystem() {
 function showWaveCompleteMenu() {
   stopEnemyAttacks();
   stopAutoAttacks();
+  const deadMembers = state.party.filter(member => member.hp <= 0);
+  const reviveCost = deadMembers.length * 20;
+  const canAffordRevive = state.gold >= reviveCost;
+  const allMembersAlive = deadMembers.length === 0;
+
   const menu = document.createElement("div");
   menu.id = "wave-complete-menu";
   menu.className = "modal-overlay";
   menu.innerHTML = `
-    <div class="modal-content">
-      <h2>Wave ${state.enemyLevel} Complete!</h2>
-      <p>All enemies defeated! What would you like to do next?</p>
-      <div class="menu-buttons">
-        <button class="btn large" data-action="repeat-wave">Repeat Wave</button>
-        <button class="btn large" data-action="next-wave">Next Wave</button>
-        <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
-        <button class="btn large" data-action="buy-spells">Buy Spells</button>
-        <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
-      </div>
+  <div class="modal-content">
+    <h2>Wave ${state.enemyLevel} Complete!</h2>
+    <p>All enemies defeated! What would you like to do next?</p>
+    <div class="menu-buttons">
+      <button class="btn large" data-action="repeat-wave">Repeat Wave</button>
+      <button class="btn large" data-action="next-wave">Next Wave</button>
+      <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
+      <button class="btn large" data-action="buy-spells">Buy Spells</button>
+      <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
+      <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
     </div>
-  `;
+  </div>
+`;
   
   document.body.appendChild(menu);
   
@@ -1753,6 +1771,9 @@ function showWaveCompleteMenu() {
   menu.querySelectorAll("[data-action]").forEach(btn => {
     btn.addEventListener("click", () => {
       const action = btn.getAttribute("data-action");
+      if (action === "revive"){
+        state.gold -= reviveCost; 
+      }
       closeWaveCompleteMenu();
       handleWaveMenuActionNew(action);
     });
@@ -1796,6 +1817,11 @@ function showDungeonCompleteMenu() {
   const menu = document.createElement("div");
   menu.id = "dungeon-complete-menu";
   menu.className = "modal-overlay";
+
+  const deadMembers = state.party.filter(member => member.hp <= 0);
+  const reviveCost = deadMembers.length * 20;
+  const canAffordRevive = state.gold >= reviveCost;
+  const allMembersAlive = deadMembers.length === 0;
   
   // Apply dungeon reward
   applyDungeonReward(currentArea.dungeonReward);
@@ -1829,6 +1855,7 @@ function showDungeonCompleteMenu() {
         <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
         <button class="btn large" data-action="buy-spells">Buy Spells</button>
         <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
+        <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
       </div>
     </div>
   `;
@@ -1844,6 +1871,10 @@ function showDungeonCompleteMenu() {
       if (action === "choose-area") {
         showAreaSelectionMenu();
       } else {
+        if (action === "revive") {
+          state.gold -= reviveCost;
+        }
+      
         handleWaveMenuActionNew(action);
       }
     });
@@ -1905,6 +1936,11 @@ function showAreaCompleteMenu() {
   const menu = document.createElement("div");
   menu.id = "area-complete-menu";
   menu.className = "modal-overlay";
+
+  const deadMembers = state.party.filter(member => member.hp <= 0);
+  const reviveCost = deadMembers.length * 20;
+  const canAffordRevive = state.gold >= reviveCost;
+  const allMembersAlive = deadMembers.length === 0;
   
   let unlockedText = "";
   if (newlyUnlocked.length > 0) {
@@ -1922,6 +1958,7 @@ function showAreaCompleteMenu() {
         <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
         <button class="btn large" data-action="buy-spells">Buy Spells</button>
         <button class="btn large" data-action="rest" ${state.gold < 50 ? "disabled" : ""}>Rest (Full Heal/MP) - 50 Gold</button>
+        <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
       </div>
     </div>
   `;
@@ -2106,6 +2143,13 @@ function handleWaveMenuActionNew(action) {
       
     case "change-area":
       showAreaSelectionMenu();
+      break;
+
+    case "revive":
+      reviveAll();
+      updatePartyBars();
+      renderSidebar();
+      showWaveCompleteMenu();
       break;
   }
 }
@@ -2725,6 +2769,8 @@ function castSpell(character, spellKey) {
         amount = 20 + Math.floor(character.totalStats.Personality * 1.0 * spMult);
         targetAll = true;
         break;
+      case "revive":
+        reviveOne();
       default:
         amount = 10 + Math.floor(character.totalStats.Personality * 0.6 * spMult);
     }
@@ -2736,14 +2782,12 @@ function castSpell(character, spellKey) {
       });
     } else {
       // Single target heal - prioritize lowest HP% living character, but can revive dead ones too
-      const healTargets = [...state.party].sort((a, b) => {
-        // Prioritize dead characters, then lowest HP% living ones
-        if (a.hp === 0 && b.hp > 0) return -1;
-        if (a.hp > 0 && b.hp === 0) return 1;
-        if (a.hp === 0 && b.hp === 0) return 0;
-        return (a.hp / a.maxHp) - (b.hp / b.maxHp);
-      });
-      
+      const healTargets = [...state.party]
+      // First, filter out dead characters
+      .filter(member => member.hp > 0)
+      // Then, sort the remaining living characters by lowest HP percentage
+      .sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+                
       const target = healTargets[0] || character;
       target.hp = Math.min(target.maxHp, target.hp + amount);
       flashHealOnCharacter(target.id);
@@ -2851,6 +2895,36 @@ function removeRegenGlow() {
   portraits.forEach(portrait => {
     portrait.classList.remove("regen-glow");
   });
+}
+
+function reviveOne() {
+  const deadMember = state.party.find(member => member.hp <= 0);
+  if (deadMember) {
+    deadMember.hp = Math.floor(deadMember.maxHp / 2);
+    flashReviveOnCharacter(deadMember.id);
+  }
+}
+
+function reviveAll() {
+  state.party.forEach(member => {
+    if (member.hp <= 0) {
+      member.hp = member.maxHp;
+      flashReviveOnCharacter(member.id);
+    }
+  });
+}
+
+function flashReviveOnCharacter(id) {
+  const portrait = partyBarRoot.querySelector(`.portrait[data-index="${id}"]`);
+  if (!portrait) return;
+
+  // Add the class to start the flash animation
+  portrait.classList.add("revive-flash");
+
+  // Remove the class after a short delay to allow the animation to play
+  setTimeout(() => {
+    portrait.classList.remove("revive-flash");
+  }, 300); // Set a short delay, e.g., 300ms, to match the CSS transition duration
 }
 
 // Game Over menu with Might & Magic style message
