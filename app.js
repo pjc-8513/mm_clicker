@@ -188,7 +188,7 @@ const CLASS_STARTING_SPELLS = {
   knight: [],
   paladin: ["heal"],
   archer: ["fireBolt"],
-  cleric: ["heal", "regeneration"],
+  cleric: ["heal"],
   sorcerer: ["fireBolt"],
   druid: ["heal", "lightning"],
   monk: ["remedy"],
@@ -212,6 +212,7 @@ const state = {
   enemy: null,
   enemyAttackTimerId: null,
   autoAttackTimerId: null,
+  cooldownUiTimerId: null,
   guaranteedCrits: 0, // Tracks remaining guaranteed critical hits from Bless
   spellCoolDowns: {},
 };
@@ -3219,6 +3220,11 @@ function castSpell(character, spellKey) {
     state.spellCoolDowns[character.id] = {};
   }
   state.spellCoolDowns[character.id][spellKey] = Date.now() + (spell.cooldown || 0);
+  if (!state.cooldownUiTimerId) {
+    state.cooldownUiTimerId = setInterval(() => {
+      renderSidebar();
+    }, 1000);
+  }
 
 }
 
@@ -3569,3 +3575,4 @@ function restartEntireGame() {
   
   console.log("Started new adventure!");
 }
+
