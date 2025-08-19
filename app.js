@@ -3135,6 +3135,7 @@ function castSpell(character, spellKey) {
         break;
       case "revive":
         reviveOne();
+        amount = 0;
         //state.spellCoolDowns[spellKey] = now + 5000;
         break;
       case "remedy":
@@ -3575,4 +3576,5 @@ function restartEntireGame() {
   
   console.log("Started new adventure!");
 }
+
 
