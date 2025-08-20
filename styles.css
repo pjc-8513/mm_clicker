@@ -621,3 +621,140 @@ if (!document.getElementById('dungeon-styles')) {
   opacity: 0.6;
   pointer-events: none; /* Prevents all click events on the div */
 }
+
+/* Update this section */
+.floating-message {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff4444; /* Default color for other messages */
+  text-shadow: 0 0 4px black;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+
+.floating-message.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) translateY(-20px);
+}
+.floating-message.dual-wield {
+  color: #ffd700; /* A gold color for dual-wield hits */
+  font-size: 2em; /* Make it larger for more impact */
+  font-style: italic;
+  text-shadow: 0 0 8px #ff4444, 0 0 16px #ff4444; /* A glowing red shadow */
+  animation: dual-wield-pulse 1s ease-out; /* Apply the animation */
+}
+
+@keyframes dual-wield-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5) rotate(-10deg);
+    opacity: 0;
+    filter: blur(5px);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2) rotate(0deg);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.floating-message.crit {
+  color: #ff2222; /* A more vibrant red */
+  font-size: 2.2em; /* A very large, impactful size */
+  font-weight: bold;
+  font-style: italic;
+  text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; /* A strong red glow */
+  animation: crit-burst 0.8s ease-out; /* Apply the new animation */
+}
+
+@keyframes crit-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6) rotate(15deg);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3) rotate(0deg);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.floating-message.spell-crit {
+  color: #66ccff; /* A bright, magical blue */
+  font-size: 2em; /* Slightly smaller than a physical crit */
+  font-weight: bold;
+  font-style: italic;
+  text-shadow: 0 0 12px #3399ff, 0 0 24px #3399ff; /* A deep blue glow */
+  animation: spell-crit-flash 1s ease-out; /* Apply the new animation */
+}
+
+@keyframes spell-crit-flash {
+  0% {
+    transform: translate(-50%, -50%) scale(0.7);
+    opacity: 0;
+    filter: brightness(0.5);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+  }
+}
+.floating-damage.heal {
+  color: #33cc33;
+  font-size: 1.1em;
+  text-shadow: 0 0 4px #00ff00;
+}
+
+/* Portrait floating crit message */
+.portrait-floating-message.crit {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.2em;
+  font-weight: bold;
+  font-style: italic;
+  color: #ff2222;
+  text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+  pointer-events: none;
+  opacity: 0;
+  animation: crit-burst 0.8s ease-out forwards;
+  z-index: 5;
+}
+
+/* Same animation you already use */
+@keyframes crit-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6) rotate(15deg);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3) rotate(0deg);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 0;
+  }
+}
