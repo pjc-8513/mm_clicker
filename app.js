@@ -94,7 +94,7 @@ const CLASS_DEFS = {
   },
   monk: {
     name: "Monk",
-    baseStats: { Might: 12, Intellect: 9, Personality: 8, Endurance: 12, Accuracy: 12, Speed: 14, Luck: 10, Dexterity: 12 },
+    baseStats: { Might: 12, Intellect: 10, Personality: 8, Endurance: 12, Accuracy: 12, Speed: 14, Luck: 10, Dexterity: 12 },
     hp: (s) => 26 + Math.floor(s.Endurance * 2.1),
     mp: (s) => 10 + Math.floor(s.Intellect * 1.5),
     image: "monk_p.png",
@@ -182,16 +182,19 @@ const SPELL_DEFS = {
    remedy: { key: "remedy", name: "Remedy", mpCost: 15, type: "heal", cost: 100,
     allowedClasses: ["cleric", "monk", "paladin"], cooldown: 2000
    },
+    weakSpot: { key: "weakSpot", name: "Weak Spot", mpCost: 15, type: "buff", cost: 500,
+    allowedClasses: ["monk"], cooldown: 15000
+   },
 };
 
 const CLASS_STARTING_SPELLS = {
   knight: [],
   paladin: ["heal"],
   archer: ["fireBolt"],
-  cleric: ["heal"],
+  cleric: ["heal", "regeneration", "revive"],
   sorcerer: ["fireBolt"],
   druid: ["heal", "lightning"],
-  monk: ["remedy"],
+  monk: ["remedy", "weakSpot"],
 };
 
 const LEVEL_UP_GAINS = {
@@ -215,6 +218,10 @@ const state = {
   cooldownUiTimerId: null,
   guaranteedCrits: 0, // Tracks remaining guaranteed critical hits from Bless
   spellCoolDowns: {},
+  dualWieldCooldowns: {}, // New cooldown tracking for dualWield
+  partyBuffs: {
+    weakSpot: false,
+  } // New state for tracking buffs
 };
 
 // Area Definition System
@@ -630,6 +637,7 @@ const ENEMY_VARIANTS = {
     attackMultiplier: 1.0,
     goldMultiplier: 1.0,
     xpMultiplier: 1.0,
+    critChance: 0.12, // 12%
     weight: 50, // 50% chance
     color: "default"
   },
@@ -640,6 +648,7 @@ const ENEMY_VARIANTS = {
     attackMultiplier: 1.0,
     goldMultiplier: 1.2, // Slightly more gold for being tougher
     xpMultiplier: 1.3, // More XP for being harder
+    critChance: 0.08, // 8%
     weight: 20, // 20% chance
     color: "corrupted"
   },
@@ -650,6 +659,7 @@ const ENEMY_VARIANTS = {
     attackMultiplier: 1.5, // +50% Attack
     goldMultiplier: 1.3, // More gold for being dangerous
     xpMultiplier: 1.2, // More XP
+    critChance: 0.12, // 12%
     weight: 20, // 20% chance
     color: "elite"
   },
@@ -660,6 +670,7 @@ const ENEMY_VARIANTS = {
     attackMultiplier: 1.5, // +50% Attack
     goldMultiplier: 1.8, // Much more gold
     xpMultiplier: 1.6, // Much more XP
+    critChance: 0.18, // 18%
     weight: 10, // 10% chance
     color: "champion"
   }
@@ -1326,6 +1337,7 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
     isVariant: variant.name !== "Warrior", // Flag for special variants
     statusEffect: template.statusEffect || [],
     isAoe: template.isAOE || false,
+    critChance: variant.critChance // NEW: critical chance carried over
   };
 }
 
@@ -1365,46 +1377,57 @@ function computeClickDamage() {
   const livingMembers = getLivingPartyMembers();
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
   if (livingMembers.length === 0) return 0;
-
+  
   // Compute Might contribution (reduced if weakened)
   const totalMight = livingMembers.reduce((sum, c) => {
     const isWeakened = c.statusEffect?.some(effect => effect.key === "weakness");
     const mightContribution = isWeakened ? c.totalStats.Might * 0.5 : c.totalStats.Might;
     return sum + mightContribution;
   }, 0);
-
+  
   const weaponSkillBonus = livingMembers.reduce((sum, c) => sum + c.skills.weaponMastery * 0.05, 0);
   const base = Math.max(1, Math.floor(totalMight / 5));
-  let damage = Math.floor(base * (1.04 ** partyLevel) + (weaponSkillBonus));
+  let totalDamage = Math.floor(base * (1.04 ** partyLevel) + (weaponSkillBonus));
   
   // Check for critical hit (only if at least one non-weakened attacker exists)
   const canCrit = livingMembers.some(c => !c.statusEffect?.some(effect => effect.key === "weakness"));
   if (canCrit && isAttackCritical()) {
-    damage = Math.floor(damage * 2.0); // 2x damage on crit
+    const totalDex = livingMembers.reduce((sum, c) => sum + c.totalStats.Dexterity, 0);
+    let critMultiplier = 2.0 + (totalDex * 0.001);
+    if (state.partyBuffs.weakSpot) {
+      critMultiplier += 0.5;
+    }
+    console.log(`Crit multiplier: ${critMultiplier}`);
+    totalDamage = Math.floor(totalDamage * critMultiplier);
+    showFloatingMessage(totalDamage, 'crit');
   }
-
-  // Check for dual wield - chance for double attack (only if not weakened)
-  let dualWieldTriggered = false;
+  
+  // Check for dual wield multi-hit system
+  let dualWieldHits = 0;
+  let dualWieldDamage = 0;
+  
   for (const member of livingMembers) {
     const isWeakened = member.statusEffect?.some(effect => effect.key === "weakness");
-    if (!isWeakened && attemptDualWield(member)) {
-      dualWieldTriggered = true;
-      console.log(`${member.id + 1} dual wield attack!`);
-      break; // Only one dual wield per click
+    if (!isWeakened && canUseDualWield(member)) {
+      const hits = attemptDualWieldChain(member);
+      if (hits > 0) {
+        dualWieldHits = Math.max(2, hits);
+        dualWieldDamage = calculateDualWieldDamage(member, dualWieldHits, base, partyLevel, weaponSkillBonus);
+        setDualWieldCooldown(member);
+        console.log(`${member.id + 1} dual wield chain: ${dualWieldHits} hits!`);
+        showFloatingMessage(`${dualWieldHits} Hits!`, 'dual-wield');
+        break; // Only one character can trigger dual wield per click
+      }
     }
   }
   
-  if (dualWieldTriggered) {
-    damage *= 2; // Double damage for dual wield
-  }
-  
-  return damage;
+  return totalDamage + dualWieldDamage;
 }
 
 
 // Enhanced enemy attack function with boss special abilities
 function computeEnemyAttackDamageWithVariantAndAbilities(enemy = null) {
-  let baseDamage = computeEnemyAttackDamageWithVariant(enemy);
+  let { damage, isCrit } = computeEnemyAttackDamageWithVariant(enemy);
   
   if (enemy && enemy.specialAbilities) {
     // Handle special abilities
@@ -1417,20 +1440,30 @@ function computeEnemyAttackDamageWithVariantAndAbilities(enemy = null) {
     }
   }
   
-  return baseDamage;
+  return { damage, isCrit };
 }
 
 // Enhanced enemy attack damage calculation using variant attack values
 function computeEnemyAttackDamageWithVariant(enemy = null) {
   const livingMembers = getLivingPartyMembers();
   let damage = 0;
+  let isCrit = false;
+
   if (enemy && enemy.attack) {
-    // Use enemy-specific attack value (already includes variant multiplier)
     const baseAttack = enemy.attack;
-    const variation = Math.random() * baseAttack * 0.3; // ±30% variation
+    const variation = Math.random() * baseAttack * 0.3; // 30%
     damage = Math.max(1, Math.floor(baseAttack + variation - (baseAttack * 0.15)));
+
+    // Critical hit check
+    if (Math.random() < (enemy.critChance || 0)) {
+      damage = Math.floor(damage * 2); // Double damage on crit
+      console.log(`${enemy.name} lands a CRITICAL HIT!`);
+      isCrit = true;
+    }
+
+
   } else {
-    // Fallback to old system
+    // Fallback
     const level = state.enemyLevel;
     damage = Math.max(1, Math.floor(2 + level * 1.5));
   }
@@ -1438,12 +1471,12 @@ function computeEnemyAttackDamageWithVariant(enemy = null) {
   const blocker = attemptBlock(livingMembers);
   if (blocker) {
     soundEffects.play('block');
-    damage = Math.floor(damage / 2); // Block successful, halve the damage
-    // You might want to add some feedback or logging here, e.g., console.log(`${blocker.classKey} blocked the attack!`);
+    damage = Math.floor(damage / 2);
   }
 
-  return damage;
+  return { damage, isCrit };
 }
+
 
 function getBlockChance(member) {
   const baseChance = 0.1; // 10% base chance
@@ -1487,16 +1520,78 @@ function attemptDodge(character) {
   return dodged;
 }
 
-// Dual wield system  
+// Dual wield multi-hit system
 function computeDualWieldChance(character) {
-  if (character.hp <= 0) return 0;
-  const skillRank = character.skills.dualWield || 0;
-  return Math.min(30, skillRank * 1) / 100; // 1% per rank, max 30%
+    if (character.hp <= 0 || !character.skills.dualWield || character.skills.dualWield === 0) return 0;
+
+    const skillRank = character.skills.dualWield || 0;
+    const dextBonus = Math.floor(character.totalStats.Dexterity * 0.10) || 0;
+
+    // Calculate the raw chance percentage
+    const baseChance = skillRank + dextBonus;
+
+    // Cap the chance at 30% and divide by 100 to get a decimal value
+    return Math.min(baseChance, 30) / 100;
 }
 
-function attemptDualWield(character) {
-  const chance = computeDualWieldChance(character);
-  return Math.random() < chance;
+function canUseDualWield(character) {
+  if (!character.skills.dualWield || character.skills.dualWield == 0) return 0;
+  const now = Date.now();
+  const readyAt = state.dualWieldCooldowns[character.id] || 0;
+  return now >= readyAt;
+}
+
+function attemptDualWieldChain(character) {
+  const baseChance = computeDualWieldChance(character);
+  console.log('baseChance', baseChance);
+  if (Math.random() >= baseChance) return 0; // Failed initial trigger
+  
+  let hits = 1; // First hit is guaranteed if we pass the initial check
+  const maxHits = 6;
+  
+  // Each subsequent hit has the same chance to trigger
+  for (let i = 1; i < maxHits; i++) {
+    if (Math.random() < baseChance) {
+      hits++;
+    } else {
+      break; // Chain broken
+    }
+  }
+  
+  return hits;
+}
+
+function calculateDualWieldDamage(character, hits, baseDamage, partyLevel, weaponSkillBonus) {
+  let totalExtraDamage = 0;
+  const isWeakened = character.statusEffect?.some(effect => effect.key === "weakness");
+  const characterMight = isWeakened ? character.totalStats.Might * 0.5 : character.totalStats.Might;
+  const characterWeaponBonus = character.skills.weaponMastery * 0.05;
+  
+  // Calculate damage for each hit individually
+  for (let i = 0; i < hits; i++) {
+    // Each hit gets its own damage roll based on the character's stats
+    const hitBase = Math.max(1, Math.floor(characterMight / 5));
+    let hitDamage = Math.floor(hitBase * (1.04 ** character.level) + characterWeaponBonus);
+    
+    // Each hit can crit independently
+    if (isAttackCritical()) {
+      hitDamage = Math.floor(hitDamage * 2.0);
+    }
+    
+    totalExtraDamage += hitDamage;
+  }
+  
+  return totalExtraDamage;
+}
+
+function setDualWieldCooldown(character) {
+  const baseCoolddown = 20000; // 20 seconds in milliseconds
+  const skillRank = character.skills.dualWield || 0;
+  const cooldownReduction = skillRank * 333; // ~0.33 seconds per skill point
+  const finalCooldown = Math.max(10000, baseCoolddown - cooldownReduction); // Minimum 10 seconds
+  
+  const now = Date.now();
+  state.dualWieldCooldowns[character.id] = now + finalCooldown;
 }
 
 /*
@@ -1651,7 +1746,8 @@ function beginEnemyAttacksWithVariants() {
     const target = chooseTarget(livingMembers);
 
     // Damage calculation
-    const dmg = computeEnemyAttackDamageWithVariantAndAbilities(attackingEnemy);
+    const { damage: dmg, isCrit } = computeEnemyAttackDamageWithVariantAndAbilities(attackingEnemy);
+    //console.log(isCrit);
 
     if (attackingEnemy.isAoe) {
       console.log(`${attackingEnemy.name} uses an AOE attack!`);
@@ -1670,6 +1766,9 @@ function beginEnemyAttacksWithVariants() {
         applyEnemyStatusEffects(attackingEnemy, member);
 
         flashDamageOnCharacter(member.id);
+        if (isCrit) {
+          showPortraitFloatingMessage(member.id, `${dmg} CRIT!`, "crit");
+        }
       }
 
     } else {
@@ -1685,6 +1784,12 @@ function beginEnemyAttacksWithVariants() {
 
       applyEnemyStatusEffects(attackingEnemy, target);
       flashDamageOnCharacter(target.id);
+
+      if (isCrit) {
+        showPortraitFloatingMessage(target.id, `${dmg} CRIT!`, "crit");
+      }
+
+
     }
 
     // Log special attacks
@@ -2766,9 +2871,11 @@ function setupKeyboardControls() {
     z: "lightning",
     x: "massDistortion",
   };
+  
 
   // Helper: try to cast a spell if someone can
 function tryCastSpell(spellName, spellType = null) {
+  
   const livingMembers = getLivingPartyMembers();
 
   for (const caster of livingMembers) {
@@ -2788,15 +2895,20 @@ function tryCastSpell(spellName, spellType = null) {
     if (spellType === "heal") {
       if (spellDef.type === "heal" && caster.mp >= spellDef.mpCost) {
         castSpell(caster, spellName);
+        //renderSidebar();
         return true; // stop after first successful cast
       }
     } else {
       if (caster.mp >= spellDef.mpCost) {
         castSpell(caster, spellName);
+        //renderSidebar();
         return true; // stop after first successful cast
       }
     }
   }
+  //renderSidebar();
+  // No eligible caster → show floating warning
+  showFloatingMessage("⚠️ Cannot cast right now");
   return false;
 }
 
@@ -2821,9 +2933,40 @@ function tryCastSpell(spellName, spellType = null) {
       const spell = keySpellMap[key];
       const isHeal = spell === "heal"; // only "heal" uses heal-specific logic
       tryCastSpell(spell, isHeal ? "heal" : null);
+      renderSidebar();
     }
   });
 }
+
+function showFloatingMessage(msg, type = "error") {
+  const msgEl = document.createElement("div");
+  msgEl.className = `floating-message ${type}`;
+  msgEl.textContent = msg;
+
+  document.body.appendChild(msgEl);
+
+  // Animate up + fade
+  setTimeout(() => msgEl.classList.add("visible"), 10);
+  setTimeout(() => {
+    msgEl.classList.remove("visible");
+    msgEl.addEventListener("transitionend", () => msgEl.remove());
+  }, 1500);
+}
+
+function showPortraitFloatingMessage(characterId, msg, type = "crit") {
+  const el = partyBarRoot.querySelector(`.portrait[data-index="${characterId}"]`);
+  if (!el) return;
+
+  const msgEl = document.createElement("div");
+  msgEl.className = `portrait-floating-message ${type}`;
+  msgEl.textContent = msg;
+
+  el.appendChild(msgEl);
+
+  // Auto-remove after animation ends
+  msgEl.addEventListener("animationend", () => msgEl.remove());
+}
+
 
 
 // Initialization
@@ -2927,6 +3070,7 @@ function renderSidebar() {
     <div class="kv"><div>Crit Chance</div><div>${critChance}%</div></div>
     ${state.guaranteedCrits > 0 ? `<div class="kv"><div>Blessed Hits</div><div style="color: var(--accent);">${state.guaranteedCrits}</div></div>` : ''}
     ${state.regenerationTimerId > 0 ? `<div class="kv"><div>Regeneration Active</div></div>` : '' }
+    ${state.partyBuffs.weakSpot ? `<div class="kv"><div>Weak Spot Active</div></div>` : ''}
   </div>
 
   <!-- Removed the Stats section -->
@@ -3007,6 +3151,7 @@ function isSpellOnCooldown(casterId, spellKey) {
 }
 
 function castSpell(character, spellKey) {
+  
   // Dead characters can't cast spells
   if (character.hp <= 0) {
     console.log("Dead characters cannot cast spells!");
@@ -3134,7 +3279,7 @@ function castSpell(character, spellKey) {
         //state.spellCoolDowns[spellKey] = now + 4000;
         break;
       case "revive":
-        reviveOne();
+        if (!reviveOne()) character.mp += spell.mpCost;
         amount = 0;
         //state.spellCoolDowns[spellKey] = now + 5000;
         break;
@@ -3187,6 +3332,23 @@ function castSpell(character, spellKey) {
   } else if (spell.type === "buff") {
     
     switch (spellKey) {
+    case "weakSpot":
+      console.log("Weak Spot activated!");
+      // Mark buff as active
+      state.partyBuffs.weakSpot = true;
+
+      // Set timer to remove after 10 seconds
+      if (state.partyBuffs.weakSpotTimerId) {
+        clearTimeout(state.partyBuffs.weakSpotTimerId);
+      }
+      state.partyBuffs.weakSpotTimerId = setTimeout(() => {
+        state.partyBuffs.weakSpot = false;
+        state.partyBuffs.weakSpotTimerId = null;
+        renderSidebar(); // re-render to clear display
+      }, 10000);
+
+      renderSidebar(); // immediately update sidebar
+      break;
       case "shield":
         const restore = 5 + Math.floor(character.totalStats.Intellect * 0.3 * spMult);
         character.mp = Math.min(character.maxMp, character.mp + restore);
@@ -3304,12 +3466,21 @@ function removeRegenGlow() {
 function reviveOne() {
   const deadMember = state.party.find(member => member.hp <= 0);
   if (deadMember) {
-    deadMember.hp = Math.floor(deadMember.maxHp / 2);
+    console.log(deadMember);
+    const maxHp = parseInt(deadMember.maxHp, 10);
+    if (!Number.isFinite(maxHp) || maxHp <= 0) {
+      console.error("Invalid maxHp value for character:", deadMember);
+      return 0;
+    }
+
+    deadMember.hp = Math.floor(maxHp / 2);
     flashReviveOnCharacter(deadMember.id);
-    // Play a sound
-    soundEffects.play('revive');
+    soundEffects.play("revive");
+    return 1;
   }
+  return 0;
 }
+
 
 function reviveAll() {
   state.party.forEach(member => {
@@ -3576,5 +3747,3 @@ function restartEntireGame() {
   
   console.log("Started new adventure!");
 }
-
-
