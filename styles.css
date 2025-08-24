@@ -311,6 +311,27 @@ body {
   }
 }
 
+.bar.hp .fill.curse-hp {
+  background: linear-gradient(90deg, #911b82 0%, #3b0b59 71%); /* Deep purple gradient */
+}
+
+/* Curse glow on portrait */
+.portrait.curse-glow {
+  animation: curse-pulse-purple 2s infinite ease-in-out;
+}
+
+@keyframes curse-pulse-purple {
+  0% {
+    box-shadow: 0 0 10px 0px rgba(75, 0, 130, 0.4); /* Deep purple */
+  }
+  50% {
+    box-shadow: 0 0 20px 8px rgba(75, 0, 130, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 10px 0px rgba(75, 0, 130, 0.4);
+  }
+}
+
 .bar.hp .fill.weakness-hp {
   background: linear-gradient(90deg, #9AA00BFF 0%, #BFC355FF 71%); /* Use a yellow gradient */
 }
