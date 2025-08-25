@@ -649,7 +649,7 @@ const ENEMY_TEMPLATES = {
     //variants: ["Berserker", "Shaman", "Warlord"]
   },
   
-  priateRaider: {
+  pirateRaider: {
     id: "pirateRaider",
     baseName: "Pirate Raider",
     type: "humanoid",
@@ -4111,3 +4111,4 @@ function restartEntireGame() {
   
   console.log("Started new adventure!");
 }
+
