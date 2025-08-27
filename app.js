@@ -1,3 +1,57 @@
+// Guide book data organized for easy expansion
+const guideData = {
+  "Character Stats": {
+    "Might": "Physical damage.",
+    "Intellect": "Mana pool for sorcerer, archer, monk, and druid.",
+    "Personality": "Linked to cleric mana pool and healing effectiveness (cleric, paladin, druid).",
+    "Endurance": "HP pool.",
+    "Accuracy": "Decreases chance of enemy dodge.",
+    "Speed": "Auto-attack speed.",
+    "Luck": "Small bonus to critical hits, dual wield chains, dodging, and blocking [Not fully integrated yet].",
+    "Dexterity": "Bonus to critical chance, dual wield chains, and dodging."
+  },
+  "Skills": {
+    "Weapon Mastery": "Bonus damage per rank. Classes: Knight, Paladin, Archer, Monk.",
+    "Spellpower": "Bonus damage/healing per rank. Classes: Sorcerer, Archer, Cleric, Druid.",
+    "Body Building": "Bonus HP per rank. Classes: Knight, Paladin, Cleric, Archer, Monk.",
+    "Meditation": "Bonus MP per rank. Classes: Sorcerer, Cleric, Druid.",
+    "Focus": "Critical hit chance per rank. Classes: Archer, Monk.",
+    "Dodging": "Chance to dodge per rank. Classes: Archer, Monk.",
+    "Dual Wield": "Chance to chain attacks. Classes: Archer, Monk.",
+    "Pick Pocket": "Chance to steal gold. Classes: Archer.",
+    "Learning": "Bonus XP from mobs. Classes: Sorcerer, Cleric, Druid, Monk, Paladin.",
+    "Block": "Chance to block 50% damage. Classes: Knight, Paladin.",
+    "Intimidate": "Chance to draw attacks. Classes: Knight, Paladin.",
+    "HP Pot": "Auto-use HP potion at low HP. Classes: Knight, Paladin, Archer, Monk.",
+    "MP Pot": "Auto-use MP potion at low MP. Classes: Sorcerer, Druid, Monk, Cleric."
+  },
+  "Spells": {
+    "Fire Bolt": "Single target fire damage. Classes: Sorcerer, Archer.",
+    "Heal": "Single target heal. Classes: Paladin, Cleric, Druid.",
+    "Lightning": "Single target lightning (high variance). Classes: Druid.",
+    "Cure All": "Party wide heal. Classes: Cleric, Druid.",
+    "Meteor": "AOE fire damage. Classes: Sorcerer.",
+    "Destroy Undead": "AOE damage to undead. Classes: Cleric, Paladin.",
+    "Bless": "Guaranteed critical hits. Bonus hits linked to Spell Power. Classes: Cleric, Paladin.",
+    "Quickstep": "Guaranteed dodge. Classes: Archer, Monk.",
+    "Touch of Death": "Chance to kill enemy. Classes: Sorcerer.",
+    "Mass Distortion": "Damage based on enemy max HP. Classes: Druid.",
+    "Regeneration": "Heal over time for party. Classes: Cleric, Monk.",
+    "Revive": "Bring back dead ally. Classes: Cleric, Monk, Paladin.",
+    "Remedy": "Remove status effect. Classes: Cleric, Monk, Paladin.",
+    "Weakspot": "Increase critical damage. Classes: Monk.",
+    "Volley": "Multi-target arrow volley. Classes: Archer.",
+    "Shrapnel": "Multi-target dark magic. Classes: Sorcerer.",
+    "Haste": "Increase party autoattack speed. Classes: Monk.",
+    "Preservation": "Prevent HP falling below 1. Classes: Monk."
+  },
+  "Status Effects": {
+    "Weakness": "Lowers physical damage. Yellow health bar.",
+    "Poison": "Damage over time. Green health bar.",
+    "Disease": "Half healing effect; no healing at Inn. Orange health bar.",
+    "Curse": "Chance to fail spells/attacks. Purple health bar."
+  }
+};
 
 // Core data: classes and base stats inspired by MM6
 const ATTRIBUTE_KEYS = [
@@ -10,6 +64,27 @@ const ATTRIBUTE_KEYS = [
   "Luck",
   "Dexterity"
 ];
+
+const DEFAULT_KEY_SPELL_MAP = {
+  q: "heal",
+  w: "regeneration",
+  e: "cure",
+  r: "remedy",
+  t: "revive",
+  y: "destroyUndead",
+  a: "fireBolt",
+  s: "meteor",
+  d: "touchOfDeath",
+  f: "shrapnel",
+  z: "lightning",
+  x: "massDistortion",
+  h: "haste",
+  j: "preservation",
+  p: "bless",
+  o: "quickstep",
+  k: "weakSpot",
+  v: "volley"
+};
 
 //SOUND
 const soundEffects = {
@@ -135,10 +210,10 @@ const SKILL_DEFS = {
     allowedClasses: ["sorcerer", "cleric", "druid", "monk", "paladin"]
    },
     block: {key: "block", name: "Block", desc: "+3% chance to block 50% of damage", baseCost: 40,
-    allowedClasses: ["knight", "paladin", "monk"]
+    allowedClasses: ["knight", "paladin"]
    },
     intimidate: {key: "intimidate", name: "Intimidate", desc: "+3% chance to draw aggro", baseCost: 40,
-    allowedClasses: ["knight", "paladin", "monk"]
+    allowedClasses: ["knight", "paladin"]
    },
     hpPotion: {key: "hpPotion", name: "HP potion", desc: "Automatically use HP potion on low health", baseCost: 60,
     allowedClasses: ["knight", "paladin", "archer", "monk"]
@@ -198,10 +273,13 @@ const SPELL_DEFS = {
     allowedClasses: ["sorcerer"], cooldown: 6000
    },
     volley: { key: "volley", name: "Volley", mpCost: 10, type: "damage", cost: 500,
-    allowedClasses: ["sorcerer"], cooldown: 4000
+    allowedClasses: ["archer"], cooldown: 4000
    },
     haste: { key: "haste", name: "Haste", mpCost: 15, type: "buff", cost: 100,
     allowedClasses: ["monk"], cooldown: 15000
+   },
+    preservation: { key: "preservation", name: "Preservation", mpCost: 35, type: "buff", cost: 1000,
+    allowedClasses: ["monk"], cooldown: 60000
    },
 };
 
@@ -218,10 +296,10 @@ const CLASS_STARTING_SPELLS = {
 const LEVEL_UP_GAINS = {
   knight: { Might: 2, Endurance: 3, Accuracy: 1, Speed: 1 },
   paladin: { Might: 1, Endurance: 2, Personality: 1, Accuracy: 1, Speed: 1 },
-  archer: { Might: 3, Accuracy: 2, Speed: 2, Endurance: 1, Dexterity: 1, Intellect: 1 },
+  archer: { Might: 2, Accuracy: 2, Speed: 2, Endurance: 1, Dexterity: 1, Intellect: 1 },
   cleric: { Might: 1, Personality: 2, Endurance: 2, Intellect: 1, Accuracy: 1 },
-  sorcerer: { Intellect: 3, Speed: 1, Luck: 1, Accuracy: 1, Endurance: 1 },
-  druid: { Intellect: 1, Personality: 1, Endurance: 2, Luck: 1, Accuracy: 1 },
+  sorcerer: { Intellect: 2, Speed: 1, Accuracy: 1, Endurance: 1 },
+  druid: { Intellect: 1, Personality: 1, Endurance: 2, Accuracy: 1 },
   monk: { Might: 1, Speed: 3, Accuracy: 1, Endurance: 2, Intellect: 1, Dexterity: 1 },
 };
 
@@ -244,8 +322,48 @@ const state = {
   partyBuffs: {
     weakSpot: false,
     haste: false,
+    preservation: false,
   } // New state for tracking buffs
 };
+let keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || { ...DEFAULT_KEY_SPELL_MAP };
+//let keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || DEFAULT_KEY_SPELL_MAP;
+//let keySpellMap = DEFAULT_KEY_SPELL_MAP;
+
+document.addEventListener('keydown', (e) => {
+  // Ignore key presses if the game screen is hidden (as in your original code)
+  if (gameScreen.classList.contains("hidden")) return;
+
+  const key = e.key.toLowerCase();
+
+  // Number keys for character selection
+  if (key >= "1" && key <= "4") {
+    const characterIndex = parseInt(key) - 1;
+    if (characterIndex < state.party.length) {
+      selectCharacter(characterIndex);
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Spell casting keys
+  if (key in keySpellMap) {
+    const spell = keySpellMap[key];
+    const isHeal = (spell === "heal"); // or expand if multiple heal spells
+    tryCastSpell(spell, isHeal ? "heal" : null);
+    renderSidebar(); // keep rendering sidebar after casting, as in your original
+    e.preventDefault();
+  }
+});
+
+
+// tier multipliers for enemies
+const TIER_MULTIPLIERS = {
+  1: { hp: 1.0, attack: 1.0, gold: 1.0, xp: 1.0 },
+  2: { hp: 1.2, attack: 1.15, gold: 1.2, xp: 1.25 },
+  3: { hp: 1.5, attack: 1.3, gold: 1.5, xp: 1.5 },
+  // etc.
+};
+
 
 // Area Definition System
 const AREAS = {
@@ -296,7 +414,7 @@ const AREAS = {
     maxWaves: 12,
     baseLevel: 13,
     enemies: ["followerBaa", "cutpurse", "bountyHunter", "apprenticeMage", "bandit"],
-    boss: "skeletonLord",
+    boss: [],
     unlocks: ["bootlegBay"],
     requirements: ["newSorpigal"], // Must complete this area first
     rewards: {
@@ -308,10 +426,10 @@ const AREAS = {
     id: "castleIronFist",
     name: "Castle Ironfist Dungeons",
     description: "Ancient dungeons beneath the great castle, filled with dangerous creatures.",
-    maxWaves: 15,
+    maxWaves: 12,
     baseLevel: 19,
     enemies: ["followerBaa", "lizardMen", "brainSucker", "skeleton"],
-    boss: "ironGolem",
+    boss: [],
     unlocks: ["freeHaven"],
     requirements: ["newSorpigal"],
     rewards: {
@@ -355,7 +473,7 @@ const AREAS = {
     id: "bootlegBay",
     name: "Bootleg Bay",
     description: "A coastal town plagued by cannibals and pirates.",
-    maxWaves: 18,
+    maxWaves: 8,
     baseLevel: 24,
     enemies: ["cannibal", "pirateRaider", "witchDoctor", "lizardMen"],
     boss: "pirateKing",
@@ -365,7 +483,143 @@ const AREAS = {
       goldMultiplier: 1.5,
       xpMultiplier: 1.3
     }
-  }
+  },
+    freeHaven: {
+    id: "freeHaven",
+    name: "Free Haven",
+    description: "Free Haven is the oldest and most prosperous city in the Kingdom.",
+    maxWaves: 11,
+    baseLevel: 26,
+    enemies: ["fireArcher", "mage", "masterArcher", "journeymenMage"],
+    boss: null,
+    unlocks: ["ethricTheMad", "mireOfDamned", "frozenHighlands"],
+    requirements: ["castleIronFist"],
+    rewards: {
+      goldMultiplier: 1.5,
+      xpMultiplier: 1.2
+    }
+  },
+  mireOfDamned: {
+    id: "mireOfDamned",
+    name: "Mire of the Damned",
+    description: "Kingdom plagued with roving hordes of undead.",
+    maxWaves: 15,
+    baseLevel: 28,
+    enemies: ["skeletonLord", "spectre", "evilSpirit", "harpyWitch"],
+    boss: null,
+    unlocks: [],
+    requirements: ["freeHaven"],
+    rewards: {
+      goldMultiplier: 1.5,
+      xpMultiplier: 1.5
+    }
+  },
+    ethricTheMad: {
+    id: "ethricTheMad",
+    name: "Tomb of Ethric the Mad",
+    description: "When Ethric the Necromancer died, he left instructions for his body to be placed in a tomb he had built next to the mountains south of the Pearblossom river. It's said that he rose from the dead a few days later in a sort of infernal miracle.",
+    type: "dungeon", // New area type
+    maxWaves: 12,
+    baseLevel: 23,
+    enemies: ["skeletonKnight", "spectre", "powerLich", "zombieWarrior"],
+    boss: "ethric",
+    unlocks: [], // Can add more dungeons later
+    requirements: ["freeHaven"],
+    rewards: {
+      goldMultiplier: 1.1,
+      xpMultiplier: 1.1
+    },
+      dungeonReward: {
+      type: "statBoost",
+      target: "party", // or "class:knight" for class-specific
+      stats: {
+        Endurance: 5,
+        Intellect: 10,
+        Luck: 1
+        },
+        description: "+10 Intellect, +5 Endurance for all heroes"
+      },
+      conditions: [] // No special conditions for first dungeon
+  },
+  dragonLair: {
+    id: "dragonLair",
+    name: "Dragon's Lair",
+    description: "Lair of Longfang Witherhide.",
+    type: "dungeon", // New area type
+    maxWaves: 2,
+    baseLevel: 27,
+    enemies: ["fireDrake"],
+    boss: "longFang",
+    unlocks: [], // Can add more dungeons later
+    requirements: ["mireOfDamned"],
+    rewards: {
+      goldMultiplier: 1.1,
+      xpMultiplier: 1.1
+    },
+      dungeonReward: {
+      type: "statBoost",
+      target: "party", // or "class:knight" for class-specific
+      stats: {
+        Might: 15,
+        Endurance: 15,
+        Intellect: 1,
+        Personality: 10,
+        Accuracy: 1,
+        Speed: 1,
+        Dexterity: 1,
+        Luck: 1
+        },
+        description: "+15 Might and Endurance, +10 Personality for all heroes"
+      },
+      conditions: [] // No special conditions for first dungeon
+  },
+  frozenHighlands: {
+    id: "frozenHighlands",
+    name: "Frozen Highlands",
+    description: "White Cap is the third largest town in Enroth, and it's been suffering ever since Lord Stromgard lost Icewind Keep to the ogres last year.",
+    maxWaves: 10,
+    baseLevel: 29,
+    enemies: ["fireArcher", "magyarMatron", "masterArcher", "harpyWitch"],
+    boss: null,
+    unlocks: ["iceWindKeep"],
+    requirements: ["freeHaven"],
+    rewards: {
+      goldMultiplier: 1.5,
+      xpMultiplier: 1.2
+    }
+  },
+  iceWindKeep: {
+    id: "iceWindKeep",
+    name: "Icewind Keep",
+    description: "Icewind Keep was once Lord Stromgard's first castle, but he lost it to an attack of ogres and evil humans about a year ago.",
+    type: "dungeon", // New area type
+    maxWaves: 9,
+    baseLevel: 31,
+    enemies: ["ogreRaider", "ogreChieftan"],
+    boss: "captain",
+    unlocks: [], // Can add more dungeons later
+    requirements: ["frozenHighlands"],
+    rewards: {
+      goldMultiplier: 1.1,
+      xpMultiplier: 1.1
+    },
+      dungeonReward: {
+      type: "statBoost",
+      target: "party", // or "class:knight" for class-specific
+      stats: {
+        Might: 10,
+        Endurance: 10,
+        Intellect: 10,
+        Personality: 10,
+        Accuracy: 10,
+        Speed: 10,
+        Dexterity: 10,
+        Luck: 1
+        },
+        description: "+10 all stats for all heroes"
+      },
+      conditions: [] // No special conditions for first dungeon
+  },
 };
 
 // Enemy Template System
@@ -397,6 +651,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Hobgoblin",
     type: "humanoid",
     tier: 1,
+    dodge: .20,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(5 + level * 1.7),
     goldFormula: (level) => Math.floor(13 + level * 3),
@@ -416,6 +671,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Bandit",
     type: "humanoid",
     tier: 1,
+    dodge: .30,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(4 + level * 1.3),
     goldFormula: (level) => Math.floor(14 + level * 3),
@@ -448,6 +704,74 @@ const ENEMY_TEMPLATES = {
     //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
+  journeymenMage: {
+    id: "journeymenMage",
+    baseName: "Journeymen Mage",
+    type: "humanoid",
+    tier: 2,
+    isMagic: true,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(7 + level * 1.4),
+    goldFormula: (level) => Math.floor(10 + level * 1.5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+
+  mage: {
+    id: "mage",
+    baseName: "mage",
+    type: "humanoid",
+    tier: 3,
+    isMagic: true,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(7 + level * 1.4),
+    goldFormula: (level) => Math.floor(10 + level * 1.5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+
+  masterArcher: {
+    id: "masterArcher",
+    baseName: "Master Archer",
+    type: "humanoid",
+    tier: 2,
+    isMagic: false,
+    dodge: .60,
+    hpFormula: (level) => Math.floor(10 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(11 + level * 1.4),
+    goldFormula: (level) => Math.floor(10 + level * 1.5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+
+  fireArcher: {
+    id: "fireArcher",
+    baseName: "Fire Archer",
+    type: "humanoid",
+    tier: 3,
+    isMagic: false,
+    dodge: .75,
+    hpFormula: (level) => Math.floor(12 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(13 + level * 1.4),
+    goldFormula: (level) => Math.floor(10 + level * 1.5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+
+  magyarMatron: {
+    id: "magyarMatron",
+    baseName: "Magyar Matron",
+    type: "humanoid",
+    tier: 3,
+    isMagic: false,
+    dodge: .50,
+    hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(10 + level * 1.4),
+    goldFormula: (level) => Math.floor(10 + level * 1.5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
+
   acolyteOfBaa: {
     id: "acolyteOfBaa",
     baseName: "Acolyte of Baa",
@@ -466,6 +790,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Huge Spider",
     type: "beast",
     tier: 1,
+    dodge: .40,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(6 + level * 1.5),
     goldFormula: (level) => Math.floor(10 + level * 2.5),
@@ -473,7 +798,7 @@ const ENEMY_TEMPLATES = {
     statusEffect: {
       poison: {
       key: 'poison',
-      chance: 0.17,
+      chance: 0.27,
       tickDamage: 20
       }
     }
@@ -511,11 +836,49 @@ const ENEMY_TEMPLATES = {
     //variants: ["Warrior", "Archer", "Mage"]
   },
 
+  skeletonLord: {
+    id: "skeletonLord",
+    baseName: "Skeleton Lord",
+    type: "undead",
+    tier: 3,
+    hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(6 + level * 1.5),
+    goldFormula: (level) => Math.floor(15 + level * 2.5),
+    xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1)),
+    statusEffect: {
+      curse: {
+      key: 'weakness',
+      chance: 0.35
+      }
+    }
+    //variants: ["Warrior", "Archer", "Mage"]
+  },
+
+  harpyWitch: {
+    id: "harpyWitch",
+    baseName: "Harpy Witch",
+    type: "beast",
+    tier: 3,
+    dodge: .45,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(8 + level * 1.5),
+    goldFormula: (level) => Math.floor(15 + level * 2.5),
+    xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1)),
+    statusEffect: {
+      curse: {
+      key: 'curse',
+      chance: 0.19
+      }
+    }
+    //variants: ["Warrior", "Archer", "Mage"]
+  },
+
   bloodSucker: {
     id: "bloodSucker",
     baseName: "Blood Sucker",
     type: "Beast",
     tier: 1,
+    dodge: .30,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(5 + level * 2),
     goldFormula: (level) => Math.floor(7 + level * 5),
@@ -553,8 +916,51 @@ const ENEMY_TEMPLATES = {
     baseName: "Brain Sucker",
     type: "Beast",
     tier: 2,
+    dodge: .30,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 2),
+    goldFormula: (level) => Math.floor(16 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Corrupted", "Elite", "Champion"]
+  },
+
+  evilSpirit: {
+    id: "evilSpirit",
+    baseName: "Evil Spirit",
+    type: "undead",
+    tier: 2,
+    dodge: .40,
+    isMagic: true,
+    hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(7 + level * 2),
+    goldFormula: (level) => Math.floor(16 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Corrupted", "Elite", "Champion"]
+  },
+
+  spectre: {
+    id: "spectre",
+    baseName: "Spectre",
+    type: "undead",
+    tier: 3,
+    dodge: .55,
+    isMagic: true,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(8 + level * 2),
+    goldFormula: (level) => Math.floor(16 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Corrupted", "Elite", "Champion"]
+  },
+
+  powerLich: {
+    id: "powerLich",
+    baseName: "Power Lich",
+    type: "undead",
+    tier: 3,
+    isMagic: true,
+    isAoe: true,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(9 + level * 2),
     goldFormula: (level) => Math.floor(16 + level * 5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
     //variants: ["Corrupted", "Elite", "Champion"]
@@ -565,6 +971,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Cutpurse",
     type: "humanoid",
     tier: 1,
+    dodge: .30,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 1.5),
     goldFormula: (level) => Math.floor(16 + level * 4),
@@ -577,6 +984,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Bounty Hunter",
     type: "humanoid",
     tier: 2,
+    dodge: .45,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(9 + level * 1.5),
     goldFormula: (level) => Math.floor(16 + level * 4),
@@ -601,7 +1009,7 @@ const ENEMY_TEMPLATES = {
   ghostSpirit: {
     id: "ghostSpirit",
     baseName: "Ghost",
-    type: "spirit",
+    type: "undead",
     tier: 2,
     isMagic: true,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
@@ -630,6 +1038,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Cannibal",
     type: "humanoid",
     tier: 2,
+    dodge: .30,
     hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 2.2),
     goldFormula: (level) => Math.floor(20 + level * 5),
@@ -649,7 +1058,7 @@ const ENEMY_TEMPLATES = {
     //variants: ["Berserker", "Shaman", "Warlord"]
   },
   
-  pirateRaider: {
+  prirateRaider: {
     id: "pirateRaider",
     baseName: "Pirate Raider",
     type: "humanoid",
@@ -672,6 +1081,51 @@ const ENEMY_TEMPLATES = {
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
     //variants: ["Berserker", "Shaman", "Warlord"]
   },
+
+  ogreRaider: {
+    id: "ogreRaider",
+    baseName: "Ogre Raider",
+    type: "humanoid",
+    tier: 2,
+    hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(9 + level * 2.2),
+    goldFormula: (level) => Math.floor(20 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Berserker", "Shaman", "Warlord"]
+  },
+
+  ogreChieftan: {
+    id: "ogreChieftan",
+    baseName: "Ogre Chieftan",
+    type: "humanoid",
+    tier: 3,
+    hpFormula: (level) => Math.floor(50 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(10 + level * 2.2),
+    goldFormula: (level) => Math.floor(20 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    //variants: ["Berserker", "Shaman", "Warlord"]
+  },
+
+  captain: {
+    id: "captain",
+    baseName: "Captain",
+    type: "humanoid",
+    tier: "boss",
+    isBoss: true,
+    isAoe: true,
+    dodge: .50,
+    hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(9 + level * 2.2),
+    goldFormula: (level) => Math.floor(20 + level * 5),
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1)),
+    statusEffect: {
+      weakness: {
+      key: 'weakness',
+      chance: 0.3
+      }
+    }
+    //variants: ["Berserker", "Shaman", "Warlord"]
+  },
   
   // Advanced Enemies
   seaDevil: {
@@ -685,11 +1139,23 @@ const ENEMY_TEMPLATES = {
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
     //variants: ["Leviathan", "Kraken Spawn", "Abyssal"]
   },
+
+  fireDrake: {
+    id: "fireDrake",
+    baseName: "fireDrake",
+    type: "beast",
+    tier: 3,
+    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    attackFormula: (level) => Math.floor(8 + level * 1.4),
+    goldFormula: (level) => Math.floor(8 + level * 1.5),
+    xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1))
+    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
+  },
   
   // Boss Enemies
-  skeletonLord: {
-    id: "skeletonLord",
-    baseName: "Skeleton Lord",
+  skeletonLordBoss: {
+    id: "skeletonLordBoss",
+    baseName: "Skeleton Warlord",
     type: "undead",
     tier: "boss",
     isBoss: true,
@@ -728,7 +1194,52 @@ const ENEMY_TEMPLATES = {
     statusEffect: {
       curse: {
       key: 'curse',
-      chance: 0.17
+      chance: 0.47
+      }
+    }
+    // Special abilities
+    
+  },
+  ethric: {
+    id: "ethric",
+    baseName: "Ethric",
+    type: "undead",
+    tier: "boss",
+    isBoss: true,
+    isMagic: true,
+    isAoe: true,
+    hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
+    attackFormula: (level) => Math.floor(8 + level * 2.5),
+    goldFormula: (level) => Math.floor(60 + level * 3),
+    xpFormula: (level) => Math.floor(30 * Math.pow(1.13, level - 1)),
+    variants: ["Warlord", "Tyrant", "Destroyer"],
+    statusEffect: {
+      curse: {
+      key: 'curse',
+      chance: 0.40
+      }
+    }
+    // Special abilities
+    
+  },
+  longFang: {
+    id: "longFang",
+    baseName: "Longfang Witherhide",
+    type: "undead",
+    tier: "boss",
+    isBoss: true,
+    isMagic: true,
+    isAoe: true,
+    hpFormula: (level) => Math.floor((30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
+    attackFormula: (level) => Math.floor(7 + level * 2.5),
+    goldFormula: (level) => Math.floor(60 + level * 3),
+    xpFormula: (level) => Math.floor(30 * Math.pow(1.13, level - 1)),
+    variants: ["Warlord", "Tyrant", "Destroyer"],
+    statusEffect: {
+      curse: {
+      key: 'poison',
+      chance: 0.55,
+      tickDamage: 50
       }
     }
     // Special abilities
@@ -875,6 +1386,36 @@ function randomizeBonuses(character) {
   character.bonusAllocations = alloc;
   character.remainingBonus = 0;
   computeTotals(character);
+}
+
+// Show the main menu
+function showMainMenu() {
+  const menu = document.createElement("div");
+  menu.id = "main-menu";
+  menu.className = "modal-overlay";
+  menu.innerHTML = `
+    <div class="modal-content">
+      <h1>Might & Magic VI Clicker</h1>
+      <p class="subtitle">A Clicker RPG inspired by a classic.</p>
+      <div class="menu-buttons">
+        <button class="btn large" data-action="new-game">New Game</button>
+        <button class="btn large" data-action="load-game" disabled>Load Game</button>
+        <button class="btn large" data-action="customize-keys">Customize Keys</button>
+        <button class="btn large" data-action="guide-book">Guide Book</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  // Add event listeners
+  menu.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.getAttribute("data-action");
+      closeMainMenu();
+      handleMainMenuAction(action);
+    });
+  });
 }
 
 // UI Rendering - Party Creator
@@ -1456,11 +1997,12 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
   const baseGold = templateCopy.goldFormula(level);
   const baseXp = templateCopy.xpFormula(level);
 
+  const tierMult = TIER_MULTIPLIERS[templateCopy.tier] || TIER_MULTIPLIERS[1];
   // Apply variant multipliers
-  const maxHp = Math.floor(baseHp * variantCopy.hpMultiplier);
-  const attack = Math.floor(baseAttack * variantCopy.attackMultiplier);
-  const rewardGold = Math.floor(baseGold * variantCopy.goldMultiplier);
-  const rewardXp = Math.floor(baseXp * variantCopy.xpMultiplier);
+  const maxHp = Math.floor(baseHp * variantCopy.hpMultiplier * tierMult.hp);
+  const attack = Math.floor(baseAttack * variantCopy.attackMultiplier * tierMult.attack);
+  const rewardGold = Math.floor(baseGold * variantCopy.goldMultiplier * tierMult.gold);
+  const rewardXp = Math.floor(baseXp * variantCopy.xpMultiplier * tierMult.xp);
 
   // Generate name with variant prefix
   let name = templateCopy.baseName;
@@ -1482,6 +2024,7 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
     rewardGold,
     rewardXp,
     level,
+    dodge: template.dodge || .15,
     variantColor: variantCopy.color,
     isVariant: variantCopy.name !== "Warrior",
     statusEffect: deepClone(templateCopy.statusEffect || []), // ensure a cloned array
@@ -1537,8 +2080,13 @@ function computeClickDamage() {
   // Only living characters contribute to damage
   const livingMembers = getLivingPartyMembers();
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
-  if (livingMembers.length === 0) return 0;
-  
+  if (livingMembers.length === 0) {
+    stopAutoAttacks();
+    stopEnemyAttacks();
+    return 0;
+  }
+
+    
   // Compute Might contribution (reduced if weakened)
   const totalMight = livingMembers.reduce((sum, c) => {
     const isWeakened = c.statusEffect?.some(effect => effect.key === "weakness");
@@ -1786,7 +2334,7 @@ function canUseHpPotion(character) {
 }
 
 function canUseMpPotion(character) {
-  console.log(character);
+  //console.log(character);
   if (!character.skills.mpPotion || character.skills.mpPotion == 0) return false;
   const now = Date.now();
   const readyAt = state.mpPotionCoolDowns[character.id] || 0;
@@ -1892,12 +2440,29 @@ function clickAttackEnemy(index) {
   
   const enemy = state.enemies[index];
   if (!enemy || enemy.hp <= 0) return;
-  
-  const dmg = computeClickDamage();
-  if (dmg > 0) {
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    onEnemyDamaged(index);
+
+  const isDodge = accuracyCheck(enemy);
+  if (!isDodge){
+    const dmg = computeClickDamage();
+    if (dmg > 0) {
+      enemy.hp = Math.max(0, enemy.hp - dmg);
+      onEnemyDamaged(index);
+    }
+  } else {
+    console.log('Enemy dodged!');
   }
+}
+
+function accuracyCheck(enemy){
+  // Accuracy check
+  const livingMembers = getLivingPartyMembers();
+  const totalAccuracy = livingMembers.reduce((sum, c) => sum + c.totalStats.Accuracy, 0);
+  // console.log(totalAccuracy);
+  const accuracyReduction = 1 - Math.exp(-totalAccuracy * 0.001);
+  const reducedDodgeChance = Math.max(0.05, enemy.dodge * (1 - accuracyReduction));
+  //console.log(accuracyReduction);
+  //console.log(reducedDodgeChance);
+  return Math.random() < reducedDodgeChance;
 }
 
 function onEnemyDamaged(index) {
@@ -1971,12 +2536,17 @@ function beginEnemyAttacksWithVariants() {
     const livingMembers = getLivingPartyMembers();
     if (livingMembers.length === 0) {
       stopEnemyAttacks();
+      stopAutoAttacks();
       checkGameOver();
       return;
     }
     
     const livingEnemies = state.enemies.filter(e => e.hp > 0);
-    if (livingEnemies.length === 0) return;
+    if (livingEnemies.length === 0) {
+      stopAutoAttacks();
+      stopEnemyAttacks();
+      return;
+    }
     
     const attackingEnemy = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
     const target = chooseTarget(livingMembers);
@@ -1995,7 +2565,12 @@ function beginEnemyAttacksWithVariants() {
           continue;
         }
 
-        member.hp = Math.max(0, member.hp - dmg);
+        if (state.partyBuffs.preservation) { // check to see if preservation is active
+          member.hp = Math.max(1, member.hp - dmg); // can't go below 1 hp when preservation is active
+        } else {
+          member.hp = Math.max(0, member.hp - dmg);
+        }
+
         if (member.hp === 0 && member.statusEffect) member.statusEffect = [];
 
         // Apply status effects if any
@@ -2015,7 +2590,11 @@ function beginEnemyAttacksWithVariants() {
         return;
       }
 
-      target.hp = Math.max(0, target.hp - dmg);
+      if (state.partyBuffs.preservation) { // check to see if preservation is active
+        target.hp = Math.max(1, target.hp - dmg); // can't go below 1 when preservation is active
+      } else {
+        target.hp = Math.max(0, target.hp - dmg);
+      }
       if (target.hp === 0 && target.statusEffect) target.statusEffect = [];
 
       applyEnemyStatusEffects(attackingEnemy, target);
@@ -2232,7 +2811,11 @@ function beginAutoAttacks() {
     
     // Find a living enemy to attack
     const livingEnemies = state.enemies.filter(e => e.hp > 0);
-    if (livingEnemies.length === 0) return;
+    if (livingEnemies.length === 0) {
+      stopAutoAttacks();
+      stopEnemyAttacks();
+      return;
+    }
     
     // Focus on focused enemy, or pick first living enemy
     let targetIndex = state.enemies.findIndex(e => e.hp > 0);
@@ -2246,7 +2829,12 @@ function beginAutoAttacks() {
       const dmg = computeClickDamage();
       if (dmg > 0) { // Only attack if we can do damage
         const enemy = state.enemies[targetIndex];
-        enemy.hp = Math.max(0, enemy.hp - dmg);
+        const isDodge = accuracyCheck(enemy);
+        if (!isDodge){
+          enemy.hp = Math.max(0, enemy.hp - dmg);
+        } else {
+          console.log('Enemy dodged!');
+        }
         onEnemyDamaged(targetIndex);
       }
     }
@@ -3119,13 +3707,15 @@ function buySpellForCharacter(characterIndex, spellKey) {
 
 // Controls
 
-document.getElementById("next-enemy").addEventListener("click", () => {
-  setupWaveNew(state.enemyLevel + 1);
+document.getElementById("CSV").addEventListener("click", () => {
+  // Replace the original line with a call to the new function
+  generateCSV();
 });
 
 // Keyboard controls for character selection
 function setupKeyboardControls() {
   // Mapping from keys -> spells
+  /*
   const keySpellMap = {
     q: "heal",
     w: "regeneration",
@@ -3138,8 +3728,48 @@ function setupKeyboardControls() {
     z: "lightning",
     x: "massDistortion",
   };
-  
+  */
+  const listEl = document.getElementById("keybinds-list");
+  listEl.innerHTML = ""; // Clear existing list
+  for (const key in keySpellMap) {
+    const spellName = keySpellMap[key];
+    const bindItem = document.createElement("div");
+    bindItem.className = "keybind-item";
+    bindItem.innerHTML = `
+      <span>${spellName}</span>
+      <input type="text" class="keybind-input" data-spell="${spellName}" value="${key.toUpperCase()}" readonly>
+    `;
+    listEl.appendChild(bindItem);
+  }
+  setupInputListeners();
+}
 
+function setupInputListeners() {
+  const inputs = document.querySelectorAll("#controls-menu .keybind-input");
+  inputs.forEach(input => {
+    input.addEventListener("click", (e) => {
+      e.target.value = "_"; // Placeholder while waiting for key press
+      e.target.focus();
+    });
+    input.addEventListener("keydown", (e) => {
+      const newKey = e.key.toLowerCase();
+      const spellName = e.target.dataset.spell;
+
+      // Update keySpellMap: remove old key for this spell
+      const oldKey = Object.keys(keySpellMap).find(k => keySpellMap[k] === spellName);
+      if (oldKey) delete keySpellMap[oldKey];
+
+      // Assign new key
+      keySpellMap[newKey] = spellName;
+
+      // Update UI and persist
+      e.target.value = newKey.toUpperCase();
+      e.target.blur();
+      e.preventDefault();
+      renderKeybinds();
+    });
+  });
+}
   // Helper: try to cast a spell if someone can
 function tryCastSpell(spellName, spellType = null) {
   
@@ -3179,7 +3809,7 @@ function tryCastSpell(spellName, spellType = null) {
   return false;
 }
 
-
+/*
   document.addEventListener("keydown", (e) => {
     if (gameScreen.classList.contains("hidden")) return;
 
@@ -3203,7 +3833,7 @@ function tryCastSpell(spellName, spellType = null) {
       renderSidebar();
     }
   });
-}
+*/
 
 function showFloatingMessage(msg, type = "error") {
   const msgEl = document.createElement("div");
@@ -3241,7 +3871,9 @@ function init() {
   // Initialize a default party of 4 random classes for variety
   state.party = Array.from({ length: PARTY_SIZE }, (_, i) => createCharacter(i, randomClassKey()));
   state.selectedIndex = 0;
-  renderCreator();
+  //let keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || DEFAULT_KEY_SPELL_MAP;
+  //renderCreator();
+  showMainMenu();
 }
 
 init();
@@ -3341,6 +3973,7 @@ function renderSidebar() {
     ${state.regenerationTimerId > 0 ? `<div class="kv"><div>Regeneration Active</div></div>` : '' }
     ${state.partyBuffs.weakSpot ? `<div class="kv"><div>Weak Spot Active</div></div>` : ''}
     ${state.partyBuffs.haste ? `<div class="kv"><div>Haste Active</div></div>` : ''}
+    ${state.partyBuffs.preservation ? `<div class="kv"><div>preservation Active</div></div>` : ''}
   </div>
 
   <!-- Removed the Stats section -->
@@ -3713,6 +4346,20 @@ function castSpell(character, spellKey) {
 
         renderSidebar(); // immediately update sidebar
       break;
+      case "preservation":
+        console.log("Preservation activated!");
+        state.partyBuffs.preservation = true;
+        const duration = 4000 + character.skills.spellpower;
+        if (state.partyBuffs.preservationTimerId) {
+          clearTimeout(state.partyBuffs.preservationTimerId);
+        }
+        state.partyBuffs.preservationTimerId = setTimeout(() => {
+          state.partyBuffs.preservation = false;
+          state.partyBuffs.preservationTimerId = null;
+          
+        }, duration); // 4 second + spell power buff
+        renderSidebar();
+        break;
       case "shield":
         const restore = 5 + Math.floor(character.totalStats.Intellect * 0.3 * spMult);
         character.mp = Math.min(character.maxMp, character.mp + restore);
@@ -4067,6 +4714,71 @@ function restartFromAreaBeginning() {
   console.log(`Restarted at ${AREAS[state.currentAreaId]?.name || 'current area'}, Wave 1`);
 }
 
+// --- Show Controls Menu ---
+function showControlsMenu() {
+  const menu = document.createElement("div");
+  menu.id = "controls-menu";
+  menu.className = "modal-overlay";
+  menu.innerHTML = `
+    <div class="modal-content">
+      <header class="topbar">
+        <h1>Customize Keyboard Controls</h1>
+        <p class="subtitle">Click a key and press a new one to rebind it.</p>
+      </header>
+      <div id="keybinds-list"></div>
+      <div class="creator-actions">
+        <button id="save-controls-btn" class="btn primary">Save</button>
+        <button id="cancel-controls-btn" class="btn secondary">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+  renderKeybinds(); // populate UI with current bindings
+
+  // Event listeners for save/cancel
+  document.getElementById("save-controls-btn").addEventListener("click", () => {
+    saveControls();
+    closeControlsMenu();
+    showMainMenu();
+  });
+
+  document.getElementById("cancel-controls-btn").addEventListener("click", () => {
+    keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || { ...DEFAULT_KEY_SPELL_MAP };
+    closeControlsMenu();
+    showMainMenu();
+  });
+}
+
+function closeControlsMenu() {
+      const menu = document.getElementById("controls-menu");
+    if (menu) {
+        menu.remove();
+    }
+}
+
+// --- UI Rendering for Controls Menu ---
+function renderKeybinds() {
+  const listEl = document.getElementById("keybinds-list");
+  listEl.innerHTML = ""; // Clear existing list
+  for (const key in keySpellMap) {
+    const spellName = keySpellMap[key];
+    const bindItem = document.createElement("div");
+    bindItem.className = "keybind-item";
+    bindItem.innerHTML = `
+      <span>${spellName}</span>
+      <input type="text" class="keybind-input" data-spell="${spellName}" value="${key.toUpperCase()}" readonly>
+    `;
+    listEl.appendChild(bindItem);
+  }
+  setupInputListeners();
+}
+
+function saveControls() {
+  localStorage.setItem('keySpellMap', JSON.stringify(keySpellMap));
+  closeControlsMenu();
+}
+
 function closeGameOverMenu() {
   const menu = document.getElementById("game-over-menu");
   if (menu) {
@@ -4112,3 +4824,125 @@ function restartEntireGame() {
   console.log("Started new adventure!");
 }
 
+function closeMainMenu() {
+  const menu = document.getElementById("main-menu");
+  if (menu) {
+    menu.remove();
+  }
+}
+
+// Create a handler function for the main menu buttons
+function handleMainMenuAction(action) {
+  switch (action) {
+    case 'new-game':
+     // closeMainMenu();
+      renderCreator();
+      break;
+    case 'load-game':
+      // Future logic for loading a game
+      console.log("Load game functionality is not yet implemented.");
+      break;
+    case 'customize-keys':
+     // closeMainMenu();
+      showControlsMenu(); // Call the function to display the controls menu
+      break;
+    case 'guide-book':
+      // Future logic for showing the guide book
+      showGuideBook();
+      break;
+  }
+}
+
+function closeMenus(){
+// make sure menus are closed
+  const existingModals = document.querySelectorAll('.modal-overlay');
+  existingModals.forEach(modal => modal.remove());
+}
+
+// Function to dynamically render the Guide Book
+function showGuideBook() {
+  const guide = document.createElement("div");
+  guide.id = "guide-book";
+  guide.className = "modal-overlay";
+
+  // Build guide HTML dynamically
+  let content = `<div class="modal-content"><h1>Game Guide</h1>`;
+
+  for (const [section, entries] of Object.entries(guideData)) {
+    content += `<h2>${section}</h2><ul>`;
+    for (const [name, desc] of Object.entries(entries)) {
+      content += `<li><strong>${name}:</strong> ${desc}</li>`;
+    }
+    content += `</ul>`;
+  }
+
+  // Add return button
+  content += `<button class="btn large" id="return-main-menu">Return to Main Menu</button></div>`;
+  guide.innerHTML = content;
+
+  document.body.appendChild(guide);
+
+  // Add listener for return button
+  document.getElementById("return-main-menu").addEventListener("click", () => {
+    guide.remove();
+    showMainMenu();
+  });
+}
+
+
+function generateCSV() {
+  const data = [];
+  const numWavesToGenerate = 100; // Define how many waves you want to test
+  const testAreaId = state.currentAreaId; // Change this to the area you want to test
+  let totalEnemiesSpawned = 0;
+
+  // Add the CSV header
+  data.push([
+    "Enemy Name",
+    "Tier",
+    "Variant",
+    "Level",
+    "HP",
+    "Attack",
+    "Gold",
+    "XP"
+  ]);
+
+  for (let i = 1; i <= numWavesToGenerate; i++) {
+    const wave = setupWaveFromAreaWithVariants(testAreaId, i);
+    wave.enemies.forEach((enemy) => {
+      data.push([
+        enemy.name,
+        enemy.tier,
+        enemy.variant,
+        enemy.level,
+        enemy.maxHp,
+        enemy.attack,
+        enemy.rewardGold,
+        enemy.rewardXp,
+      ]);
+      totalEnemiesSpawned++;
+    });
+  }
+
+  // Convert the array of arrays into a CSV string
+  const csvContent = "data:text/csv;charset=utf-8," + data.map(e => e.join(",")).join("\n");
+
+  // Log the total number of enemies spawned
+  console.log(`Generated a CSV with data for ${totalEnemiesSpawned} enemies across ${numWavesToGenerate} waves.`);
+
+  // Trigger the download
+  downloadCSV(csvContent, `enemy_data_${testAreaId}.csv`);
+}
+
+function downloadCSV(csvString, filename) {
+  const encodedUri = encodeURI(csvString);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link); // Required for Firefox
+
+  link.click(); // Trigger the download
+
+  document.body.removeChild(link); // Clean up the DOM
+}
