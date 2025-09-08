@@ -1,9 +1,200 @@
+// Global debug configuration
+const DEBUG_CONFIG = {
+  enabled: false,         // Master switch to enable/disable debug features
+  
+  // Character/Level debug
+  forceStartingLevel: 1,  // Set to 0 or false to disable
+  startingGold: 100000,
+  
+  // Loot debug
+  forceDrops: true,        // Every enemy drops loot
+  defaultDropTier: false, // Force all drops to this tier (or false for normal)
+  forceArtifactId: null, // e.g. "robinsBow" or "bloodmore"
+  
+  // Attribute forcing (will guarantee these on every item)
+  forceAttributes: {
+    stun: false,
+    lifesteal: false,
+    baseDmg: false,
+    critDmg: false,
+    spellDmg: false,
+    evasion: false,
+    ofFireball: false,
+    reflectDmg: false,
+    manaRegen: false,
+    hpRegen: false,
+    hunter: false,
+    executioner: true,
+    excommunicator: false,
+    banisher: false,
+    slayer: false
+
+  },
+  
+  // Future debug options can go here
+  godMode: false,
+  unlimitedMana: false
+};
+
+// Loot system constants
+const LOOT_TIERS = {
+  common: { name: "Common", attrCount: 1 },
+  magic: { name: "Magic", attrCount: 2 },
+  rare: { name: "Rare", attrCount: 3 },
+  legendary: { name: "Legendary", attrCount: 4 },
+  artifact:  { name: "Artifact", attrCount: 0 }, // Unique items, no random stats
+};
+
+const LOOT_ATTRIBUTES = [
+  { key: "stun", name: "Stun Chance", type: "percent", weight: 5 }, // averagish
+  { key: "lifesteal", name: "Lifesteal", type: "percent", weight: 5 }, // averagish
+  { key: "baseDmg", name: "Base Damage", type: "percent", weight: 9 }, // fairly common
+  { key: "spellDmg", name: "Spell Power", type: "percent", weight: 7 }, // fairly common
+  { key: "critDmg", name: "Critical Damage", type: "percent", weight: 7 }, // fairly common
+  { key: "evasion", name: "Evasion", type: "percent", weight: 6 }, // averagish
+  { key: "ofFireball", name: "Of Fireball", type: "cast", weight: 2 }, // not too common
+  { key: "reflectDmg", name: "Reflect Damage", type: "percent", weight: 4 }, // slightly more rare
+  { key: "manaRegen", name: "Mana Regen", type: "percent", weight: 0 }, // 0% because it doesn't exist yet; future attribute
+  { key: "hpRegen", name: "Health Regen", type: "percent", weight: 0 }, // 0% because it doesn't exist yet; future attribute
+  { key: "hunter", name: "Hunter's Mark", type: "percent", weight: 8 }, // fairly common extra damage to beasts
+  { key: "executioner", name: "Executioner", type: "percent", weight: 8 }, // fairly common extra damage to humans
+  { key: "excommunicator", name: "Excommunicator", type: "percent", weight: 3 }, // slightly more rare extra damage to demons (there aren't any demons yet)
+  { key: "banisher", name: "Banisher", type: "percent", weight: 8 }, // fairly common extra damage to undead
+  { key: "slayer", name: "Slayer", type: "percent", weight: 3 } // slightly more rare extra damage to dragons (there are only a few dragons so far)
+
+];
+
+const WEAPON_FLAVORS = [
+  { min: 0, max: 8, name: "Longsword" },
+  { min: 9, max: 17, name: "Mage Dagger" },
+  { min: 18, max: 27, name: "Wonder Mace" },
+  { min: 28, max: 36, name: "Savage Spear" },
+  { min: 37, max: 45, name: "Crusader Sword" },
+  { min: 46, max: Infinity, name: "Supreme Axe" },
+];
+
+const ARMOR_FLAVORS = [
+  { min: 0, max: 8, name: "Leather Armor" },
+  { min: 9, max: 17, name: "Studded Leather" },
+  { min: 18, max: 27, name: "Steel Chain Mail" },
+  { min: 28, max: 36, name: "Royal Chain Mail" },
+  { min: 37, max: 45, name: "Steel Plate Armor" },
+  { min: 46, max: Infinity, name: "Golden Plate Armor" },
+];
+
+const HELM_FLAVORS = [
+  { min: 0, max: 6, name: "Cloth Hat" },
+  { min: 7, max: 13, name: "Wizard Cap" },
+  { min: 14, max: 19, name: "Helm" },
+  { min: 20, max: 26, name: "Steel Helm" },
+  { min: 27, max: 33, name: "Regal Crown" },
+  { min: 34, max: Infinity, name: "Almighty Crown" },
+];
+
+const GLOVE_FLAVORS = [
+  { min: 0, max: 6, name: "Cloth Gloves" },
+  { min: 7, max: 13, name: "Leather Gloves" },
+  { min: 14, max: 19, name: "Studded Gloves" },
+  { min: 20, max: 26, name: "Steel Gauntlets" },
+  { min: 27, max: 33, name: "Knight's Gauntlets" },
+  { min: 34, max: Infinity, name: "Ultimate Gauntlets" },
+];
+
+const BOOT_FLAVORS = [
+  { min: 0, max: 6, name: "Leather Boots" },
+  { min: 7, max: 13, name: "Steel Boots" },
+  { min: 14, max: 19, name: "Armored Boots" },
+  { min: 20, max: 26, name: "Sterling Boots" },
+  { min: 27, max: 33, name: "Knight's Boots" },
+  { min: 34, max: Infinity, name: "Ultimate Boots" },
+];
+
+const EQUIP_SLOTS = ["weapon", "helm", "armor", "gloves", "boots"];
+
+const ARTIFACTS = {
+  bloodmore: {
+    id: "bloodmore",
+    name: "Bloodmore",
+    slot: "weapon",
+    tier: "artifact",
+    flavorName: "Bloodmore, the Soul-Drinker",
+    description: "AOE life-drain. Half's weilder's HP.",
+    stats: {
+      hp: 0,
+      might: 25,
+      bonuses: [
+        { key: "baseDmg", value: 50 },
+        { key: "lifesteal", value: 20 }
+      ]
+    },
+    special: {
+      aoeAttack: true,   // custom effect in combat loop
+      lifesteal: true,   // redundant with stat, but nice for hooks
+    }
+  },
+
+  robinsBow: {
+    id: "robinsBow",
+    name: "Robin's Bow",
+    slot: "weapon",
+    tier: "artifact",
+    flavorName: "Robin’s Bow",
+    description: "Casts Volley every 3.5s, raining arrows on random enemies.",
+    stats: {
+      hp: 100,
+      might: 5,
+      bonuses: [
+        { key: "Dexterity", value: 10 },
+        { key: "Accuracy", value: 10 }
+      ]
+    },
+    special: {
+      castsVolley: { interval: 3500 } // ms between casts
+    }
+  },
+
+  torchWand: {
+  id: "torchWand",
+  name: "Torch Wand",
+  slot: "weapon",
+  tier: "artifact",
+  flavorName: "Torch Wand",
+  description: "+4 Of Fireball.",
+  stats: {
+    hp: 200,
+    might: 5,
+    bonuses: [
+      { key: "Intellect", value: 15 },
+      { key: "Personality", value: 5 }
+    ]
+  }
+},
+
+brambleArmor: {
+  id: "brambleArmor",
+  name: "Bramble Armor",
+  slot: "armor",
+  tier: "artifact",
+  flavorName: "Bramble Armor",
+  description: "Adds damage reflection 75%.",
+  stats: {
+    hp: 500,
+    might: 5,
+    bonuses: [
+      { key: "reflectDmg", value: 75 }
+    ]
+  }
+}
+
+};
+
+
 // Guide book data organized for easy expansion
 const guideData = {
   "Character Stats": {
     "Might": "Physical damage.",
     "Intellect": "Mana pool for sorcerer, archer, monk, and druid.",
-    "Personality": "Linked to cleric mana pool and healing effectiveness (cleric, paladin, druid).",
+    "Personality": "Linked to cleric mana pool and healing effectiveness (cleric, paladin, druid). <br> Also adds bonus to equipment sell value.",
     "Endurance": "HP pool.",
     "Accuracy": "Decreases chance of enemy dodge.",
     "Speed": "Auto-attack speed.",
@@ -43,13 +234,14 @@ const guideData = {
     "Volley": "Multi-target arrow volley. Classes: Archer.",
     "Shrapnel": "Multi-target dark magic. Classes: Sorcerer.",
     "Haste": "Increase party autoattack speed. Classes: Monk.",
-    "Preservation": "Prevent HP falling below 1. Classes: Monk."
+    "Preservation": "Prevent HP falling below 1. Classes: Monk.",
+    "Sparks": "Multi-target charged sparks (high variance). Classes: Druid."
   },
   "Status Effects": {
     "Weakness": "Lowers physical damage. Yellow health bar.",
     "Poison": "Damage over time. Green health bar.",
-    "Disease": "Half healing effect; no healing at Inn. Orange health bar.",
-    "Curse": "Chance to fail spells/attacks. Purple health bar."
+    "Disease": "Half healing effect; Diseased characters will not heal at the Inn. Orange health bar.",
+    "Curse": "Chance to fail spells/attacks. <br> Cursed characters cannot dodge, block, or get dual wield chains. Purple health bar."
   }
 };
 
@@ -83,7 +275,8 @@ const DEFAULT_KEY_SPELL_MAP = {
   p: "bless",
   o: "quickstep",
   k: "weakSpot",
-  v: "volley"
+  v: "volley",
+  c: "sparks"
 };
 
 //SOUND
@@ -177,7 +370,7 @@ const CLASS_DEFS = {
   },
 };
 
-const DEFAULT_BONUS_POINTS = 20;
+const DEFAULT_BONUS_POINTS = 12;
 const PARTY_SIZE = 4;
 
 // Skills and Spells (simplified)
@@ -281,6 +474,9 @@ const SPELL_DEFS = {
     preservation: { key: "preservation", name: "Preservation", mpCost: 35, type: "buff", cost: 1000,
     allowedClasses: ["monk"], cooldown: 60000
    },
+    sparks: { key: "sparks", name: "Sparks", mpCost: 12, type: "damage", cost: 400,
+    allowedClasses: ["druid"], cooldown: 3500
+  },
 };
 
 const CLASS_STARTING_SPELLS = {
@@ -309,6 +505,7 @@ const state = {
   gold: 0,
   enemyLevel: 1,
   enemy: null,
+  waveComplete: true,
   enemyAttackTimerId: null,
   autoAttackTimerId: null,
   cooldownUiTimerId: null,
@@ -319,13 +516,28 @@ const state = {
   mpPotionCoolDowns: {}, // new cooldown tracking for mp potion
   availableHPPotions: 5,
   availableMPPotions: 5,
+  ofFireballCount: 0,
+  fireballInterval: null,
+  enemyAttackTimers: [],
+  pendingLoot: [], // list of loot boxes waiting to be opened
+  foundArtifacts: [],
   partyBuffs: {
     weakSpot: false,
     haste: false,
     preservation: false,
   } // New state for tracking buffs
 };
-let keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || { ...DEFAULT_KEY_SPELL_MAP };
+const storedKeySpellMap = JSON.parse(localStorage.getItem('keySpellMap'));
+const version = localStorage.getItem('keySpellMapVersion');
+const DEFAULT_VERSION = 1;
+
+if (!storedKeySpellMap || version !== DEFAULT_VERSION) {
+  keySpellMap = { ...DEFAULT_KEY_SPELL_MAP, ...storedKeySpellMap };
+  localStorage.setItem('keySpellMap', JSON.stringify(keySpellMap));
+  localStorage.setItem('keySpellMapVersion', DEFAULT_VERSION);
+} else {
+  keySpellMap = storedKeySpellMap;
+}
 //let keySpellMap = JSON.parse(localStorage.getItem('keySpellMap')) || DEFAULT_KEY_SPELL_MAP;
 //let keySpellMap = DEFAULT_KEY_SPELL_MAP;
 
@@ -373,7 +585,7 @@ const AREAS = {
     description: "The familiar countryside around New Sorpigal, perfect for beginning adventurers.",
     maxWaves: 10,
     baseLevel: 1,
-    enemies: ["goblin", "bandit", "wolf", "apprenticeMage"],
+    enemies: ["goblin", "bandit", "apprenticeMage"],
     boss: null, // No boss for starting area
     unlocks: ["mistyIslands", "castleIronFist"],
     rewards: {
@@ -630,7 +842,8 @@ const ENEMY_TEMPLATES = {
     baseName: "Goblin",
     type: "humanoid",
     tier: 1,
-    hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    speed: 1.5,
+    hpFormula: (level) => Math.floor(10 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 4),
     attackFormula: (level) => Math.floor(3 + level * 1.2),
     goldFormula: (level) => Math.floor(10 + level * 2),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1)),
@@ -652,15 +865,17 @@ const ENEMY_TEMPLATES = {
     type: "humanoid",
     tier: 1,
     dodge: .20,
-    hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(5 + level * 1.7),
     goldFormula: (level) => Math.floor(13 + level * 3),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1)),
+    speed: 3,
+    lootTier: 1,
     statusEffect: {
       poison: {
       key: 'poison',
-      chance: 0.1,
-      tickDamage: 3
+      chance: 0.13,
+      tickDamage: 8
       }
     }
     //variants: ["Scout", "Warrior", "Chieftain"]
@@ -672,25 +887,14 @@ const ENEMY_TEMPLATES = {
     type: "humanoid",
     tier: 1,
     dodge: .30,
-    hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+    speed: 2.5,
+    hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(4 + level * 1.3),
     goldFormula: (level) => Math.floor(14 + level * 3),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
     //variants: ["Thief", "Outlaw", "Captain"]
   },
   
-  wolf: {
-    id: "wolf",
-    baseName: "Wolf",
-    type: "beast",
-    tier: 1,
-    hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
-    attackFormula: (level) => Math.floor(5 + level * 1.4),
-    goldFormula: (level) => Math.floor(6 + level * 1.5),
-    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
-  },
-
   apprenticeMage: {
     id: "apprenticeMage",
     baseName: "Apprentice Mage",
@@ -701,7 +905,6 @@ const ENEMY_TEMPLATES = {
     attackFormula: (level) => Math.floor(7 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   journeymenMage: {
@@ -709,12 +912,12 @@ const ENEMY_TEMPLATES = {
     baseName: "Journeymen Mage",
     type: "humanoid",
     tier: 2,
+    lootTier: 2,
     isMagic: true,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   mage: {
@@ -722,12 +925,13 @@ const ENEMY_TEMPLATES = {
     baseName: "mage",
     type: "humanoid",
     tier: 3,
+    lootTier: 3,
+    speed: 2.5,
     isMagic: true,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   masterArcher: {
@@ -735,13 +939,14 @@ const ENEMY_TEMPLATES = {
     baseName: "Master Archer",
     type: "humanoid",
     tier: 2,
+    lootTier: 2,
     isMagic: false,
     dodge: .60,
+    speed: 2,
     hpFormula: (level) => Math.floor(10 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(11 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   fireArcher: {
@@ -749,13 +954,14 @@ const ENEMY_TEMPLATES = {
     baseName: "Fire Archer",
     type: "humanoid",
     tier: 3,
+    lootTier: 3,
     isMagic: false,
     dodge: .75,
+    speed: 1.8,
     hpFormula: (level) => Math.floor(12 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(13 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   magyarMatron: {
@@ -763,13 +969,15 @@ const ENEMY_TEMPLATES = {
     baseName: "Magyar Matron",
     type: "humanoid",
     tier: 3,
+    lootTier: 3,
     isMagic: false,
     dodge: .50,
+    speed: 2,
+    isStunnable: false,
     hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(10 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   acolyteOfBaa: {
@@ -777,12 +985,12 @@ const ENEMY_TEMPLATES = {
     baseName: "Acolyte of Baa",
     type: "humanoid",
     tier: 2,
+    lootTier: 2,
     isMagic: true,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
 
   hugeSpider: {
@@ -791,6 +999,8 @@ const ENEMY_TEMPLATES = {
     type: "beast",
     tier: 1,
     dodge: .40,
+    speed: 3,
+    lootTier: 1,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(6 + level * 1.5),
     goldFormula: (level) => Math.floor(10 + level * 2.5),
@@ -811,6 +1021,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Skeleton",
     type: "undead",
     tier: 1,
+    lootTier: 1,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(4 + level * 1.5),
     goldFormula: (level) => Math.floor(10 + level * 2.5),
@@ -823,6 +1034,8 @@ const ENEMY_TEMPLATES = {
     baseName: "Skeleton Knight",
     type: "undead",
     tier: 2,
+    speed: 3,
+    lootTier: 2,
     hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(6 + level * 1.5),
     goldFormula: (level) => Math.floor(15 + level * 2.5),
@@ -845,6 +1058,9 @@ const ENEMY_TEMPLATES = {
     attackFormula: (level) => Math.floor(6 + level * 1.5),
     goldFormula: (level) => Math.floor(15 + level * 2.5),
     xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1)),
+    speed: 2.5,
+    lootTier: 3,
+    isStunnable: false,
     statusEffect: {
       curse: {
       key: 'weakness',
@@ -860,6 +1076,8 @@ const ENEMY_TEMPLATES = {
     type: "beast",
     tier: 3,
     dodge: .45,
+    speed: 2,
+    lootTier: 3,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 1.5),
     goldFormula: (level) => Math.floor(15 + level * 2.5),
@@ -879,6 +1097,7 @@ const ENEMY_TEMPLATES = {
     type: "Beast",
     tier: 1,
     dodge: .30,
+    lootTier: 1,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(5 + level * 2),
     goldFormula: (level) => Math.floor(7 + level * 5),
@@ -898,6 +1117,9 @@ const ENEMY_TEMPLATES = {
     baseName: "Zombie Warrior",
     type: "undead",
     tier: 2,
+    speed: 4,
+    lootTier: 2,
+    isStunnable: false,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(6 + level * 1.8),
     goldFormula: (level) => Math.floor(16 + level * 4),
@@ -917,6 +1139,8 @@ const ENEMY_TEMPLATES = {
     type: "Beast",
     tier: 2,
     dodge: .30,
+    speed: 2.5,
+    lootTier: 2,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 2),
     goldFormula: (level) => Math.floor(16 + level * 5),
@@ -930,6 +1154,8 @@ const ENEMY_TEMPLATES = {
     type: "undead",
     tier: 2,
     dodge: .40,
+    speed: 2.5,
+    lootTier: 2,
     isMagic: true,
     hpFormula: (level) => Math.floor(15 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 2),
@@ -944,7 +1170,10 @@ const ENEMY_TEMPLATES = {
     type: "undead",
     tier: 3,
     dodge: .55,
+    speed: 2.5,
     isMagic: true,
+    lootTier: 3,
+    isStunnable: false,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 2),
     goldFormula: (level) => Math.floor(16 + level * 5),
@@ -959,6 +1188,8 @@ const ENEMY_TEMPLATES = {
     tier: 3,
     isMagic: true,
     isAoe: true,
+    speed: 2.5,
+    lootTier: 3,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(9 + level * 2),
     goldFormula: (level) => Math.floor(16 + level * 5),
@@ -972,6 +1203,8 @@ const ENEMY_TEMPLATES = {
     type: "humanoid",
     tier: 1,
     dodge: .30,
+    speed: 2.5,
+    lootTier: 1,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 1.5),
     goldFormula: (level) => Math.floor(16 + level * 4),
@@ -985,6 +1218,8 @@ const ENEMY_TEMPLATES = {
     type: "humanoid",
     tier: 2,
     dodge: .45,
+    speed: 2,
+    lootTier: 2,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(9 + level * 1.5),
     goldFormula: (level) => Math.floor(16 + level * 4),
@@ -998,6 +1233,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Follower of Baa",
     type: "humanoid",
     tier: 1,
+    lootTier: 1,
     isMagic: true,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(5 + level * 1.5),
@@ -1011,6 +1247,8 @@ const ENEMY_TEMPLATES = {
     baseName: "Ghost",
     type: "undead",
     tier: 2,
+    lootTier: 2,
+    dodge: .50,
     isMagic: true,
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 2.0),
@@ -1024,8 +1262,11 @@ const ENEMY_TEMPLATES = {
     baseName: "Witch Doctor",
     type: "humanoid",
     tier: 2,
+    lootTier: 1,
+    dodge: .30,
     isMagic: true,
     isAoe: true,
+    speed: 4,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(7 + level * 2.0),
     goldFormula: (level) => Math.floor(15 + level * 3.5),
@@ -1038,6 +1279,7 @@ const ENEMY_TEMPLATES = {
     baseName: "Cannibal",
     type: "humanoid",
     tier: 2,
+    lootTier: 1,
     dodge: .30,
     hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 2.2),
@@ -1051,6 +1293,8 @@ const ENEMY_TEMPLATES = {
     baseName: "Lizard Men",
     type: "beast",
     tier: 2,
+    lootTier: 1,
+    speed: 2.5,
     hpFormula: (level) => Math.floor(30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(10 + level * 2),
     goldFormula: (level) => Math.floor(17 + level * 5),
@@ -1063,6 +1307,8 @@ const ENEMY_TEMPLATES = {
     baseName: "Pirate Raider",
     type: "humanoid",
     tier: 2,
+    speed: 3,
+    lootTier: 2,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(10 + level * 1.8),
     goldFormula: (level) => Math.floor(20 + level * 5),
@@ -1086,7 +1332,8 @@ const ENEMY_TEMPLATES = {
     id: "ogreRaider",
     baseName: "Ogre Raider",
     type: "humanoid",
-    tier: 2,
+    tier: 3,
+    lootTier: 3,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(9 + level * 2.2),
     goldFormula: (level) => Math.floor(20 + level * 5),
@@ -1099,6 +1346,9 @@ const ENEMY_TEMPLATES = {
     baseName: "Ogre Chieftan",
     type: "humanoid",
     tier: 3,
+    lootTier: 3,
+    speed: 2.5,
+    isStunnable: false,
     hpFormula: (level) => Math.floor(50 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(10 + level * 2.2),
     goldFormula: (level) => Math.floor(20 + level * 5),
@@ -1111,9 +1361,12 @@ const ENEMY_TEMPLATES = {
     baseName: "Captain",
     type: "humanoid",
     tier: "boss",
+    speed: 1.5,
     isBoss: true,
     isAoe: true,
     dodge: .50,
+    lootTier: 4,
+    isStunnable: false,
     hpFormula: (level) => Math.floor(40 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(9 + level * 2.2),
     goldFormula: (level) => Math.floor(20 + level * 5),
@@ -1145,11 +1398,11 @@ const ENEMY_TEMPLATES = {
     baseName: "fireDrake",
     type: "beast",
     tier: 3,
+    lootTier: 3,
     hpFormula: (level) => Math.floor(20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 1.4),
     goldFormula: (level) => Math.floor(8 + level * 1.5),
     xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1))
-    //variants: ["Dire Wolf", "Alpha Wolf", "Fenrir"]
   },
   
   // Boss Enemies
@@ -1171,6 +1424,7 @@ const ENEMY_TEMPLATES = {
   type: "humanoid",
   tier: "boss",
   isBoss: true,
+  lootTier: 4,
   hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
   attackFormula: (level) => Math.floor(12 + level * 2.5),
   goldFormula: (level) => Math.floor(60 + level * 3),
@@ -1186,6 +1440,7 @@ const ENEMY_TEMPLATES = {
     tier: "boss",
     isBoss: true,
     isMagic: true,
+    lootTier: 4,
     hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
     attackFormula: (level) => Math.floor(12 + level * 2.5),
     goldFormula: (level) => Math.floor(60 + level * 3),
@@ -1208,6 +1463,7 @@ const ENEMY_TEMPLATES = {
     isBoss: true,
     isMagic: true,
     isAoe: true,
+    lootTier: 4,
     hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
     attackFormula: (level) => Math.floor(8 + level * 2.5),
     goldFormula: (level) => Math.floor(60 + level * 3),
@@ -1230,6 +1486,8 @@ const ENEMY_TEMPLATES = {
     isBoss: true,
     isMagic: true,
     isAoe: true,
+    lootTier: 4,
+    isStunnable: false,
     hpFormula: (level) => Math.floor((30 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
     attackFormula: (level) => Math.floor(7 + level * 2.5),
     goldFormula: (level) => Math.floor(60 + level * 3),
@@ -1281,7 +1539,7 @@ const ENEMY_VARIANTS = {
     goldMultiplier: 1.0,
     xpMultiplier: 1.0,
     critChance: 0.12, // 12%
-    weight: 50, // 50% chance
+    weight: 60, // 60% chance
     color: "default"
   },
   corrupted: {
@@ -1303,7 +1561,7 @@ const ENEMY_VARIANTS = {
     goldMultiplier: 1.3, // More gold for being dangerous
     xpMultiplier: 1.2, // More XP
     critChance: 0.12, // 12%
-    weight: 20, // 20% chance
+    weight: 15, 
     color: "elite"
   },
   champion: {
@@ -1314,7 +1572,7 @@ const ENEMY_VARIANTS = {
     goldMultiplier: 1.8, // Much more gold
     xpMultiplier: 1.6, // Much more XP
     critChance: 0.18, // 18%
-    weight: 10, // 10% chance
+    weight: 5, 
     color: "champion"
   }
 };
@@ -1340,6 +1598,7 @@ function createCharacter(id, classKey) {
     remainingBonus: DEFAULT_BONUS_POINTS,
     level: 1,
     xp: 0,
+    reflectAmount: 0,
     nextLevelXp: getNextLevelXp(1),
     skills: { weaponMastery: 0, spellpower: 0, bodyBuilding: 0, meditation: 0, focus: 0, dodging: 0,
       dualWield: 0, pickPocket: 0, learning: 0, intimidate: 0, block: 0, hpPotion: 0, mpPotion: 0
@@ -1572,14 +1831,59 @@ const goldEl = document.getElementById("gold");
 function startGame() {
   creationScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
+  initializeDebugMode();
   renderPartyBar();
   setupWaveNew(1);
   beginEnemyAttacksWithVariants();
   beginAutoAttacks();
   selectCharacter(state.selectedIndex);
   migrateToNewSystem();
-  setupKeyboardControls();
+  setupKeyboardControls();  
   //console.log(state.party);
+}
+
+// Debug initialization function - call this when starting/resetting the game
+function initializeDebugMode() {
+  console.log("DEBUG: Initializing debug mode");
+  if (!DEBUG_CONFIG.enabled) return;
+  console.log("DEBUG: Debug mode is enabled");
+  
+  if (DEBUG_CONFIG.forceStartingLevel > 0) {
+    console.log(`DEBUG: Setting party to level ${DEBUG_CONFIG.forceStartingLevel}`);
+    
+    for (const character of state.party) {
+      const targetLevel = DEBUG_CONFIG.forceStartingLevel;
+      const currentLevel = character.level;
+      
+      // Level up each character to the target level
+      for (let level = currentLevel; level < targetLevel; level++) {
+        character.level++;
+        applyLevelGains(character);
+      }
+      
+      // Ensure stats are properly computed
+      //recomputeCharacterStats(character); // I don't think this actually works
+
+      state.gold = DEBUG_CONFIG.startingGold;
+      character.currentHP = character.maxHP;
+      character.currentMP = character.maxMP;
+      updatePartyBars();
+      renderSidebar();
+    }
+  }
+}
+
+// Utility function to quickly toggle debug features
+function toggleDebugFeature(feature, value) {
+  if (feature in DEBUG_CONFIG) {
+    DEBUG_CONFIG[feature] = value;
+    console.log(`DEBUG: ${feature} set to ${value}`);
+  } else if (feature in DEBUG_CONFIG.forceAttributes) {
+    DEBUG_CONFIG.forceAttributes[feature] = value;
+    console.log(`DEBUG: Force ${feature} attribute set to ${value}`);
+  } else {
+    console.warn(`DEBUG: Unknown feature '${feature}'`);
+  }
 }
 
 function renderPartyBar() {
@@ -1721,6 +2025,7 @@ function setupWaveNew(waveNumber, areaId = null) {
   const currentAreaId = areaId || state.currentAreaId || "newSorpigal";
   const waveData = setupWaveFromArea(currentAreaId, waveNumber);
   
+  state.waveComplete = false;
   // Update UI elements
   waveNumberEl.textContent = String(waveData.waveNumber);
   areaNameEl.textContent = waveData.areaName;
@@ -1951,9 +2256,641 @@ function renderEnemyListWithVariants() {
     });
   });
 }
+
+
+// loot functions
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function randomChoice(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getWeaponFlavor(partyLevel) {
+  console.log(`Party level: ${partyLevel}`);
+  const flavor = WEAPON_FLAVORS.find(f => partyLevel >= f.min && partyLevel <= f.max);
+  console.log(`Found flavor: ${JSON.stringify(flavor)}`);
+  return flavor?.name || "Weapon";
+}
+
+function getArmorFlavor(partyLevel) {
+  return ARMOR_FLAVORS.find(f => partyLevel >= f.min && partyLevel <= f.max)?.name || "Armor";
+}
+
+function getHelmFlavor(partyLevel) {
+  return HELM_FLAVORS.find(f => partyLevel >= f.min && partyLevel <= f.max)?.name || "Helm";
+}
+
+function getGloveFlavor(partyLevel) {
+  return GLOVE_FLAVORS.find(f => partyLevel >= f.min && partyLevel <= f.max)?.name || "Glove";
+}
+
+function getBootFlavor(partyLevel) {
+  return BOOT_FLAVORS.find(f => partyLevel >= f.min && partyLevel <= f.max)?.name || "Boot";
+}
+
+function randFloat(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function ensureCharRuntimeFields(char) {
+  if (!char.runtime) char.runtime = {};
+  if (!char.runtime.equipmentTimers) char.runtime.equipmentTimers = {};
+}
+
+function weightedRandomChoice(pool) {
+  const totalWeight = pool.reduce((sum, item) => sum + (item.weight || 1), 0);
+  let roll = Math.random() * totalWeight;
+  for (const item of pool) {
+    roll -= (item.weight || 1);
+    if (roll <= 0) return item;
+  }
+  return pool[pool.length - 1]; // fallback
+}
+
+// Modified loot generation with debug support
+function generateLoot(tierKey, slot) {
+  // Override tier if debug is active
+  if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.defaultDropTier) {
+    tierKey = DEBUG_CONFIG.defaultDropTier;
+  }
+  console.log(tierKey);
+  const tier = LOOT_TIERS[tierKey];
+  const partyLevel = Math.round(state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length);
+
+  // Artifact override
+if (tierKey === "artifact") {
+  let pick;
+
+  // Force artifact if debug specifies one
+  if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.forceArtifactId) {
+    pick = ARTIFACTS[DEBUG_CONFIG.forceArtifactId];
+    if (!pick) {
+      console.warn("DEBUG: Artifact ID not found:", DEBUG_CONFIG.forceArtifactId);
+      return null;
+    }
+  } else {
+    // Otherwise pick randomly from artifacts matching slot
+    const artifactPool = Object.values(ARTIFACTS).filter(a => a.slot === slot);
+    if (artifactPool.length === 0) {
+      console.warn("No artifacts available for slot:", slot);
+      return null;
+    }
+    pick = randomChoice(artifactPool);
+  }
+
+    return JSON.parse(JSON.stringify(pick)); // safe deep copy
+  }
+
+
+
+  // Base HP roll
+  const baseHp = randInt(5, 20) + Math.floor(partyLevel * 2);
+
+
+  // Tier-based HP bonus
+  let hpBonus = 0;
+  switch (tierKey) {
+    case "common":
+      hpBonus = 0;
+      break;
+    case "magic":
+      hpBonus = randInt(10, 30) + Math.floor(partyLevel * 1.5);
+      break;
+    case "rare":
+      hpBonus = randInt(50, 100) + Math.floor(partyLevel * 3);
+      break;
+    case "legendary":
+      hpBonus = randInt(200, 500) + Math.floor(partyLevel * 5);
+      break;
+  }
+
+  // All gear has HP% and Might
+  const hp = baseHp + hpBonus;
+  const might = randInt(1, 3) + Math.floor(partyLevel / 5) * (tierKey === "legendary" ? 2 : 1);
+
+  const bonuses = [];
+
+  // FORCE DEBUG ATTRIBUTES FIRST (if debug is enabled)
+  if (DEBUG_CONFIG.enabled) {
+    if (DEBUG_CONFIG.forceAttributes.stun) {
+      bonuses.push({ key: "stun", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.lifesteal) {
+      bonuses.push({ key: "lifesteal", value: 10 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.baseDmg) {
+      bonuses.push({ key: "baseDmg", value: 10 + Math.floor(partyLevel / 2) });
+    }
+    if (DEBUG_CONFIG.forceAttributes.critDmg) {
+      bonuses.push({ key: "critDmg", value: 20 + Math.floor(partyLevel / 2) });
+    }
+    if (DEBUG_CONFIG.forceAttributes.spellDmg) {
+      bonuses.push({ key: "spellDmg", value: 20 + Math.floor(partyLevel / 2) });
+    }
+    if (DEBUG_CONFIG.forceAttributes.evasion) {
+      bonuses.push({ key: "evasion", value: 15 + Math.floor(partyLevel / 3) });
+    }
+    if (DEBUG_CONFIG.forceAttributes.ofFireball) {
+      bonuses.push({ key: "ofFireball", value: 1 });
+    }
+      if (DEBUG_CONFIG.forceAttributes.reflectDmg) {
+      bonuses.push({ key: "reflectDmg", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.hunter) {
+      bonuses.push({ key: "hunter", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.executioner) {
+      bonuses.push({ key: "executioner", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.excommunicator) {
+      bonuses.push({ key: "excommunicator", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.banisher) {
+      bonuses.push({ key: "banisher", value: 50 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.slayer) {
+      bonuses.push({ key: "slayer", value: 50 });
+    }
+  }
+
+  // Fill remaining bonus slots with random attributes
+  const bonusCount = tier.attrCount;
+  const remainingSlots = bonusCount - bonuses.length;
+  
+  if (remainingSlots > 0) {
+    /*
+    const bonusPool = ["mp", "Accuracy", "Speed", "Personality", "Luck", "Intellect", 
+                        "Dexterity", ...LOOT_ATTRIBUTES.map(a => a.key)];
+    */
+    const bonusPool = [
+      { key: "mp", weight: 10 },
+      { key: "Accuracy", weight: 10 },
+      { key: "Speed", weight: 10 },
+      { key: "Personality", weight: 5 },
+      { key: "Luck", weight: 3 },
+      { key: "Intellect", weight: 7 },
+      { key: "Dexterity", weight: 7 },
+      ...LOOT_ATTRIBUTES // already has weights
+  ];
+    // Remove already-added debug attributes from the pool
+    const debugAttributes = [];
+    if (DEBUG_CONFIG.enabled) {
+      for (const [attr, enabled] of Object.entries(DEBUG_CONFIG.forceAttributes)) {
+        if (enabled) debugAttributes.push(attr);
+      }
+    }
+    
+   // const filteredPool = bonusPool.filter(attr => !debugAttributes.includes(attr));
+   const filteredPool = bonusPool.filter(attr => 
+    !debugAttributes.includes(attr.key) && (attr.weight ?? 1) > 0
+  );
+
+
+    for (let i = 0; i < remainingSlots; i++) {
+      //const stat = randomChoice(filteredPool);
+      const chosen = weightedRandomChoice(filteredPool);
+      const stat = chosen.key;
+      let value = 0;
+
+      switch (stat) {
+        case "mp": value = randInt(10, 50) + Math.floor(partyLevel * 1.2); break;
+        case "Accuracy": value = randInt(1, 10) + Math.floor(partyLevel * 0.5); break;
+        case "Speed": value = randInt(1, 10) + Math.floor(partyLevel * 0.5); break;
+        case "Personality": value = randInt(1, 10) + Math.floor(partyLevel * 0.5); break;
+        case "Luck": value = randInt(1, 2) + Math.floor(partyLevel / 20); break;
+        case "Intellect": value = randInt(1, 10) + Math.floor(partyLevel / 20); break;
+        case "Dexterity": value = randInt(1, 10) + Math.floor(partyLevel / 20); break;
+
+        // Improved scaling formulas that feel impactful at all levels
+        case "stun":
+          // Base 2-8% + level scaling, cap at 25%
+          const stunBase = randFloat(2.0, 8.0);
+          const stunLevelBonus = (partyLevel / 10) * randFloat(0.5, 1.5);
+          value = Math.min(25, +(stunBase + stunLevelBonus).toFixed(1));
+          break;
+
+        case "lifesteal":
+          // Base 3-12% + level scaling, cap at 40%
+          const lifestealBase = randFloat(3.0, 12.0);
+          const lifestealLevelBonus = (partyLevel / 8) * randFloat(0.5, 1.2);
+          value = Math.min(40, +(lifestealBase + lifestealLevelBonus).toFixed(1));
+          break;
+
+        case "baseDmg":
+          // Base 8-25% + level scaling, cap at 100%
+          const baseDmgBase = randFloat(8.0, 25.0);
+          const baseDmgLevelBonus = (partyLevel / 5) * randFloat(0.8, 1.5);
+          value = Math.min(100, +(baseDmgBase + baseDmgLevelBonus).toFixed(1));
+          break;
+
+        case "spellDmg":
+          // Base 10-30% + level scaling, cap at 120%
+          const spellDmgBase = randFloat(10.0, 30.0);
+          const spellDmgLevelBonus = (partyLevel / 6) * randFloat(0.7, 1.3);
+          value = Math.min(120, +(spellDmgBase + spellDmgLevelBonus).toFixed(1));
+          break;
+
+        case "critDmg":
+          // Base 15-40% + level scaling, cap at 150%
+          const critDmgBase = randFloat(15.0, 40.0);
+          const critDmgLevelBonus = (partyLevel / 4) * randFloat(1.0, 2.0);
+          value = Math.min(150, +(critDmgBase + critDmgLevelBonus).toFixed(1));
+          break;
+
+        case "evasion":
+          // Base 5-20% + level scaling, cap at 50%
+          const evasionBase = randFloat(5.0, 20.0);
+          const evasionLevelBonus = (partyLevel / 10) * randFloat(0.5, 1.5);
+          value = Math.min(50, +(evasionBase + evasionLevelBonus).toFixed(1));
+          break;
+
+        case "ofFireball":
+          value = 1;
+          break;    
+        
+        case "reflectDmg":
+          value = randInt(10.0, 15.0);
+          break;
+
+        case "hunter": // Extra dmg vs beasts
+        case "executioner": // Extra dmg vs humanoids
+        case "excommunicator": // Extra dmg vs demons
+        case "banisher": // Extra dmg vs undead
+        case "slayer": // Extra dmg vs dragons
+          // Base 5–20% scaling, cap at 150%
+          const extraBase = randFloat(5.0, 20.0);
+          const extraLevelBonus = (partyLevel / 5) * randFloat(0.5, 1.5);
+          value = Math.min(150, Math.round((extraBase + extraLevelBonus) * 10) / 10);
+        break;
+      }
+
+      bonuses.push({ key: stat, value });
+    }
+  }
+
+  // Pick flavor name
+  let flavorName = slot;
+  if (slot === "weapon") {
+    flavorName = getWeaponFlavor(partyLevel);
+  } else if (slot === "armor") {
+    flavorName = getArmorFlavor(partyLevel);
+  } else if (slot === "helm") {
+    flavorName = getHelmFlavor(partyLevel);
+  } else if (slot === "gloves") {
+    flavorName = getGloveFlavor(partyLevel);
+  } else if (slot === "boots") {
+    flavorName = getBootFlavor(partyLevel);
+  }
+
+  return {
+    id: Date.now() + "-" + Math.random().toString(36).slice(2),
+    tier: tierKey,
+    slot: slot,
+    flavorName,
+    stats: {
+      hp, 
+      might,
+      bonuses
+    }
+  };
+}
+
+function applyEquipmentStats(character, item, skipClamp = false) {
+  character.maxHp += item.stats.hp;
+  character.totalStats.Might += item.stats.might;
+  
+  for (const b of item.stats.bonuses) {
+    if (b.key === 'mp') {
+      character.maxMp = (character.maxMp || 0) + b.value;
+      if (!skipClamp) character.mp = character.maxMp;
+    }
+    character.totalStats[b.key] = (character.totalStats[b.key] || 0) + b.value;
+  }
+  console.log(item);
+  // Apply or increase ofFireball
+  if (item.stats.bonuses.some(bonus => bonus.key === "ofFireball") || item.id === "torchWand") {
+    applyOfFireball(item);
+    console.log('ofFireballCount: ', state.ofFireballCount);
+    
+    if (state.ofFireballCount > 0 && !state.ofFireballSet){
+      state.ofFireballSet = true;
+      state.fireballInterval = setInterval(() => {
+        castFireball();
+      }, 2500); // 2500 milliseconds = 2.5 seconds
+    }
+  }
+
+  // Update reflect in character
+  const reflectBonus = item.stats.bonuses.find(bonus => bonus.key === "reflectDmg");
+  if (reflectBonus) {
+    character.reflectAmount += reflectBonus.value;
+  }
+
+  // Artifact special effects
+  if (item.tier === "artifact") {
+    ensureCharRuntimeFields(character);
+
+    if (item.id === "robinsBow") {
+      // Setup volley timer
+      const interval = item.special.castsVolley.interval;
+      character.runtime.equipmentTimers.robinsBow = setInterval(() => {
+        if (!state.waveComplete) {
+          castVolley(character);
+        }
+      }, interval);
+    }
+  }
+}
+
+function removeEquipmentStats(character, item) {
+  character.maxHp -= item.stats.hp;
+  character.totalStats.Might -= item.stats.Might;
+
+  for (const b of item.stats.bonuses) {
+    if (b.key === 'mp') {
+      character.maxMp -= b.value;
+      character.mp = Math.min(character.mp, character.maxMp);
+    }
+    character.totalStats[b.key] -= b.value;
+  }
+
+  // decrease ofFireball
+  if (item.stats.bonuses.includes("ofFireball") || item.id === "torchWand") {
+    decreaseOfFireball(item);
+  }
+
+  // Update reflect in character
+  if (item.stats.bonuses.some(bonus => bonus.key === "reflectDmg")) {
+    character.reflectAmount -= item.stats.bonuses.reflectDmg.value;
+  }
+
+  // Clean up artifact timers
+  if (item.tier === "artifact") {
+    ensureCharRuntimeFields(character);
+
+    if (item.id === "robinsBow" && character.runtime.equipmentTimers.robinsBow) {
+      clearInterval(character.runtime.equipmentTimers.robinsBow);
+      delete character.runtime.equipmentTimers.robinsBow;
+    }
+  }
+}
+
+
+function recomputeCharacterStats(character) {
+  // Store the current HP ratio before recalculating
+  const currentHpRatio = character.maxHp > 0 ? character.hp / character.maxHp : 1;
+  
+  // Reset to base (after level-ups already applied)
+  character.totalStats = { ...character.baseStats };
+  character.maxHp = computeMaxHpMp(character.classKey, character.totalStats).hp;
+  character.maxMp = computeMaxHpMp(character.classKey, character.totalStats).mp;
+  
+  // Apply skill-derived bonuses
+  applySkillDerivedBonuses(character);
+  
+  // Apply all equipped gear
+  let hasBloodmore = false;
+  for (const slot in character.equipment) {
+    const item = character.equipment[slot];
+    if (item) applyEquipmentStats(character, item, true);
+    if (item.id === "bloodmore") {
+      hasBloodmore = true;
+    }
+  }
+  
+  // Apply Bloodmore's penalty *after* all bonuses
+  if (hasBloodmore) {
+    character.maxHp = Math.floor(character.maxHp / 2);
+  }
+  
+  // Maintain HP ratio instead of just clamping
+  character.hp = Math.floor(character.maxHp * currentHpRatio);
+  character.mp = Math.min(character.mp, character.maxMp);
+}
+
+
+
+/*
+function getLootDrop() {
+  // Simple drop logic: weighted random tier
+  const roll = Math.random();
+  let tier = "common";
+  if (roll > 0.9) tier = "legendary";
+  else if (roll > 0.7) tier = "rare";
+  else if (roll > 0.4) tier = "magic";
+
+  const slot = randomChoice(EQUIP_SLOTS);
+  return generateLoot(tier, slot);
+}
+*/
+
+function generateLootFromTier(lootTier) {
+  const roll = Math.random();
+  let tier = "common";
+
+  switch (lootTier) {
+    case 0: // forced common
+      tier = "common";
+      break;
+    case 1: // common - magic
+      tier = roll > 0.6 ? "magic" : "common";
+      break;
+    case 2: // common - rare
+      if (roll > 0.8) tier = "rare";
+      else if (roll > 0.4) tier = "magic";
+      else tier = "common";
+      break;
+    case 3: // magic - legendary
+      if (roll > 0.9) tier = "legendary";
+      else if (roll > 0.5) tier = "rare";
+      else tier = "magic";
+      break;
+    case 4: // rare - legendary
+      tier = roll > 0.7 ? "legendary" : "rare";
+      break;
+  }
+
+  const slot = randomChoice(EQUIP_SLOTS);
+  return generateLoot(tier, slot);
+}
+
+
+function showLootChestMenu(loot) {
+  const menu = document.createElement("div");
+  menu.className = "modal-overlay";
+
+  // Core stats
+  const statList = Object.keys(loot.stats).map(key => {
+    if (key === "bonuses") return;
+    return `<li>${key}: +${loot.stats[key]}</li>`;
+  }).filter(Boolean).join("");
+
+  // Bonus stats
+  const bonusList = loot.stats.bonuses.map(bonus => {
+    const attrDef = LOOT_ATTRIBUTES.find(a => a.key === bonus.key);
+    if (attrDef?.type === "percent") {
+      return `<li>${attrDef.name}: +${bonus.value}%</li>`;
+    } else {
+      return `<li>${bonus.key}: +${bonus.value}</li>`;
+    }
+  }).join("");
+
+  // Sell value
+  let sellValue = loot.stats.hp + loot.stats.might;
+  for (const bonus of loot.stats.bonuses) {
+    sellValue += Math.round(bonus.value);
+  }
+  const totalPersonality = state.party.reduce((sum, char) => sum + char.totalStats.Personality, 0);
+  sellValue += Math.floor(totalPersonality * 0.1);
+
+  // Extra: description for artifacts
+  const descriptionHtml = loot.tier === "artifact" && loot.description
+    ? `<p class="artifact-description">${loot.description}</p>`
+    : "";
+
+  menu.innerHTML = `
+    <div class="modal-content loot-${loot.tier}">
+      <h2>${LOOT_TIERS[loot.tier].name} ${loot.flavorName}</h2>
+      ${descriptionHtml}
+      <ul>
+        ${statList || ""}
+        ${bonusList || "<li>No extra stats</li>"}
+      </ul>
+      <div class="menu-buttons">
+        <button class="btn large" data-action="equip">Equip</button>
+        <button class="btn large" data-action="sell">Sell for ${sellValue} gold</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  menu.querySelector("[data-action='equip']").addEventListener("click", () => {
+    showEquipMenu(loot);
+    menu.remove();
+  });
+  menu.querySelector("[data-action='sell']").addEventListener("click", () => {
+    state.gold += sellValue;
+    menu.remove();
+    renderSidebar();
+    showWaveCompleteMenu();
+  });
+}
+
+
+
+function showEquipMenu(loot) {
+  const menu = document.createElement("div");
+
+  let sellValue = loot.stats.hp + loot.stats.might;
+  for (const bonus of loot.stats.bonuses) {
+    sellValue += Math.round(bonus.value);
+  }
+
+  const totalPersonality = state.party.reduce((sum, char) => sum + char.totalStats.Personality, 0);
+  sellValue += Math.floor(totalPersonality * 0.1);
+
+  menu.className = "modal-overlay";
+
+  // Helper to format stats (core + bonuses)
+  function formatStats(item) {
+    if (!item) return "Empty";
+
+    const coreStats = Object.keys(item.stats)
+      .map(key => {
+        if (key === "bonuses") return;
+        return `${key}: +${item.stats[key]}`;
+      })
+      .filter(Boolean)
+      .join(", ");
+
+    const bonusStats = item.stats.bonuses
+      .map(bonus => {
+        const attrDef = LOOT_ATTRIBUTES.find(a => a.key === bonus.key);
+        if (attrDef?.type === "percent") {
+          return `${attrDef.name}: +${bonus.value}%`;
+        } else {
+          return `${bonus.key}: +${bonus.value}`;
+        }
+      })
+      .join(", ");
+
+    return `${LOOT_TIERS[item.tier].name} ${item.flavorName} (${[coreStats, bonusStats].filter(Boolean).join(", ")})`;
+  }
+
+  // Character equip options
+  let options = state.party.map((char, i) => {
+    const classDef = CLASS_DEFS[char.classKey];
+    const displayName = char.name || classDef?.name || `Hero ${i+1}`;
+    const current = char.equipment?.[loot.slot];
+
+    return `
+      <div class="character-section">
+        <h3>${displayName} (Lvl ${char.level})</h3>
+        <p>Current: ${formatStats(current)}</p>
+        <button class="btn small" data-character="${i}" data-action="equip">Equip Here</button>
+      </div>
+    `;
+  }).join("");
+
+  // New item preview
+  const newItemStats = formatStats(loot);
+
+  // Extra description for artifacts
+  const descriptionHtml = loot.tier === "artifact" && loot.description
+    ? `<p class="artifact-description">${loot.description}</p>`
+    : "";
+
+  menu.innerHTML = `
+    <div class="modal-content loot-${loot.tier}">
+      <h2>Equip Item: ${newItemStats}</h2>
+      ${descriptionHtml}
+      ${options}
+      <button class="btn" data-action="sell-item">Sell for ${sellValue} gold</button>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  menu.querySelectorAll("[data-action='equip']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.getAttribute("data-character"));
+      const char = state.party[idx];
+
+      // If something is already equipped, push it back to loot box instead of selling
+      if (char.equipment?.[loot.slot]) {
+        const oldItem = char.equipment[loot.slot];
+        state.pendingLoot.push(oldItem);
+      }
+
+      if (!char.equipment) char.equipment = {};
+      char.equipment[loot.slot] = loot;
+
+      // Recompute stats fresh
+      recomputeCharacterStats(char);
+
+      updatePartyBars();
+      renderSidebar();
+
+      menu.remove();
+      showWaveCompleteMenu();
+    });
+  });
+
+  menu.querySelector("[data-action='sell-item']").addEventListener("click", () => {
+    state.gold += sellValue;
+    menu.remove();
+    renderSidebar();
+    showWaveCompleteMenu();
+  });
+}
+
+
+
 /*
 function generateEnemy(level) {
-  const names = ["Goblin", "Bandit", "Wolf", "Skeleton", "Ogre", "Harpy", "Minotaur", "Hydra", "Devilkin"];
+  const names = ["Goblin", "Bandit", "Skeleton", "Ogre", "Harpy", "Minotaur", "Hydra", "Devilkin"];
   const base = Math.max(1, level);
   const name = `${names[level % names.length]} L${level}`;
   const maxHp = 50 + Math.floor(level * 30 + Math.pow(level, 1.35) * 8);
@@ -2005,22 +2942,26 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
   const rewardXp = Math.floor(baseXp * variantCopy.xpMultiplier * tierMult.xp);
 
   // Generate name with variant prefix
-  let name = templateCopy.baseName;
+  let name = templateCopy.baseName || "Enemy";
   if (variantCopy.prefix) {
     name = `${variantCopy.prefix} ${templateCopy.baseName}`;
   }
   name += ` L${level}`;
+  // Generate unique ID for this instance
+  const instanceId = `${templateId}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   return {
+    instanceId, // unique ID for THIS enemy
     id: templateId,
     name,
-    type: templateCopy.type,
+    type: templateCopy.type || "normal",
     tier: templateCopy.tier,
     variant: variantCopy.name.toLowerCase(),
     isBoss: templateCopy.isBoss || false,
     maxHp,
     hp: maxHp,
     attack,
+    speed: template.speed || 3.5, // let's just say attacking once every 3.5 secs is the default and I'll adjust this
     rewardGold,
     rewardXp,
     level,
@@ -2030,10 +2971,97 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
     statusEffect: deepClone(templateCopy.statusEffect || []), // ensure a cloned array
     isAoe: templateCopy.isAOE || false,
     isMagic: templateCopy.isMagic || false,
-    critChance: variantCopy.critChance
+    critChance: variantCopy.critChance,
+    isStunnable: templateCopy.isStunnable !== false, // default true
+    effects: [], // for ongoing effects like stun/burn/poison
+    lootTier: template.lootTier || 0
   };
 }
 
+// Item and Artifact skills
+function castVolley(character) {
+  const livingPartyMembers = getLivingPartyMembers();
+  if (!character || character.hp <= 0) return; // dead or invalid character
+  if (state.waveComplete || livingPartyMembers.length === 0) return;
+
+  const arrows = 5;
+  const level = character.level || 1;
+  const dex = character.totalStats.dexterity || 0;
+  const might = character.totalStats.might || 0;
+
+  // Power formula: scales with level + dex + might
+  const power = Math.floor(level * 2 + dex * 0.5 + might * 0.3);
+
+  for (let i = 0; i < arrows; i++) {
+    if (state.waveComplete) return;
+
+    // Living enemies
+    const livingEnemies = state.enemies
+      .map((enemy, idx) => ({ enemy, idx }))
+      .filter(e => e.enemy.hp > 0);
+
+    if (livingEnemies.length === 0) break;
+
+    // Random enemy
+    const pick = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+    const enemy = pick.enemy;
+    const idx = pick.idx;
+
+    // Apply damage
+    enemy.hp = Math.max(0, enemy.hp - power);
+    onEnemyDamaged(idx);
+  }
+}
+
+function castFireball() {
+  
+  const livingPartyMembers = getLivingPartyMembers();
+  if (state.waveComplete || livingPartyMembers.length === 0) return;
+
+  //console.log('State enemies:', state.enemies);
+  const livingEnemies = state.enemies
+    .map((enemy, idx) => ({ enemy, idx }))
+    .filter(e => e.enemy.hp > 0);
+  //console.log('living enemies: ', livingEnemies);
+  if (livingEnemies.length === 0) return;
+  
+  // Random enemy
+  const pick = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+  const enemy = pick.enemy;
+  const idx = pick.idx;
+
+  // Calculate fireball damage
+  const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
+  const baseDamage = partyLevel * 2; // adjust this value as needed
+  const fireballDamage = Math.round(baseDamage * (1 + state.ofFireballCount * 0.5)); // each ofFireball adds 50% damage
+  
+  // Apply damage
+  enemy.hp = Math.max(0, enemy.hp - fireballDamage);
+  onEnemyDamaged(idx);
+  console.log('Fireball damage: ', fireballDamage);
+  // Play fire sound
+  soundEffects.play('fire');
+}
+
+function applyOfFireball(item){
+  if (item.id === "torchWand"){
+    state.ofFireballCount += 4;
+  } else {
+    state.ofFireballCount++;
+  }
+}
+
+function decreaseOfFireball(item){
+  if (item.id === "torchWand"){
+    state.ofFireballCount -= 4;
+  } else {
+    state.ofFireballCount--;
+  }
+
+  if (state.ofFireballCount <= 0) {
+    clearInterval(state.fireballInterval);
+  }
+}
 
 function computePartySpeed() {
   // Only living party members contribute to speed
@@ -2048,7 +3076,8 @@ function computePartySpeed() {
       const partySpeed = livingMembers.reduce((sum, c) => sum + c.totalStats.Speed, 0) / livingMembers.length;
       const hasteBonus = 50;
       const totalSpeed = partySpeed + hasteBonus;
-      return totalSpeed;
+      const adjustedSpeed = diminishingReturns(totalSpeed, 200);
+      return adjustedSpeed;
     }
 }
 
@@ -2076,7 +3105,12 @@ function getLivingPartyMembers() {
   return state.party.filter(c => c.hp > 0);
 }
 
-function computeClickDamage() {
+function diminishingReturns(value, scale = 250) {
+  return (value * scale) / (value + scale);
+}
+
+function computeClickDamage(index) {
+  const enemy = state.enemies[index];
   // Only living characters contribute to damage
   const livingMembers = getLivingPartyMembers();
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
@@ -2085,24 +3119,86 @@ function computeClickDamage() {
     stopEnemyAttacks();
     return 0;
   }
+  let usedBloodmore = false;
+  let bloodDamage = 0;
+  for (const member of livingMembers) {
+    const weapon = member.equipment?.weapon;
 
+    // Check for Bloodmore
+    if (weapon && weapon.id === "bloodmore") {
+      usedBloodmore = true;
+      const dmg = computeBloodmoreAOE(member);
+      bloodDamage += dmg;
+      
+    }
+  }
     
-  // Compute Might contribution (reduced if weakened)
-  const totalMight = livingMembers.reduce((sum, c) => {
-    const isWeakened = c.statusEffect?.some(effect => effect.key === "weakness");
-    const mightContribution = isWeakened ? c.totalStats.Might * 0.5 : c.totalStats.Might;
-    return sum + mightContribution;
-  }, 0);
+// Compute Might contribution (reduced if weakened, exclude Bloodmore wielders)
+const totalMight = livingMembers.reduce((sum, c) => {
+  const weapon = c.equipment?.weapon;
+  
+  // Skip characters with Bloodmore since they're handled separately
+  if (weapon && weapon.id === "bloodmore") {
+    return sum;
+  }
+  
+  const isWeakened = c.statusEffect?.some(effect => effect.key === "weakness");
+  const mightContribution = isWeakened ? c.totalStats.Might * 0.5 : c.totalStats.Might;
+  return sum + mightContribution;
+}, 0);
+
+  const adjustedMight = diminishingReturns(totalMight, 300);
   
   const weaponSkillBonus = livingMembers.reduce((sum, c) => sum + c.skills.weaponMastery * 0.05, 0);
-  const base = Math.max(1, Math.floor(totalMight / 5));
-  let totalDamage = Math.floor(base * (1.04 ** partyLevel) + (weaponSkillBonus));
+  const base = Math.max(1, Math.floor(adjustedMight / 5));
+
+  // Gather baseDmg % bonuses from all equipped gear
+  let baseDmgBonus = 0;
+  for (const member of livingMembers) {
+    for (const slot in member.equipment) {
+      const item = member.equipment[slot];
+      if (!item) continue;
+
+      for (const b of item.stats.bonuses) {
+        if (b.key === "baseDmg") {
+          baseDmgBonus += b.value; // flat percent add
+        }
+      }
+    }
+  }
+
+  // Gather critical damage % bonuses from all equipped gear
+  let critDmgBonus = 0;
+  for (const member of livingMembers) {
+    for (const slot in member.equipment) {
+      const item = member.equipment[slot];
+      if (!item) continue;
+      for (const b of item.stats.bonuses) {
+        if (b.key === "critDmg") {
+          critDmgBonus += b.value; // flat percent add
+        }
+      }
+    }
+  }
+
+  let baseDamageWithBonus = base;
+  // Apply base damage % bonus
+  if (baseDmgBonus > 0) {
+    baseDamageWithBonus = Math.floor(base * (1 + baseDmgBonus / 100));
+    console.log(`Applying baseDmg bonus: ${baseDmgBonus}%, New base damage: ${baseDamageWithBonus}`);
+  }
+
+  let totalDamage = Math.floor(baseDamageWithBonus * (1.04 ** partyLevel) + (weaponSkillBonus));
+  console.log(`Base Damage: ${base}, After baseDmg Bonus: ${baseDamageWithBonus}, Total Damage before crits: ${totalDamage}`);
   
   // Check for critical hit (only if at least one non-weakened attacker exists)
   const canCrit = livingMembers.some(c => !c.statusEffect?.some(effect => effect.key === "weakness"));
   if (canCrit && isAttackCritical()) {
     const totalDex = livingMembers.reduce((sum, c) => sum + c.totalStats.Dexterity, 0);
-    let critMultiplier = 2.0 + (totalDex * 0.001);
+    //let critMultiplier = 2.0 + (totalDex * 0.001);
+    console.log(`critDmgBonus: ${critDmgBonus}`);
+    let critMultiplier = (2.0 + (totalDex * 0.001)) * (1 + critDmgBonus / 100);
+    console.log(`critMultiplier after dex and gear: ${critMultiplier}`);
     if (state.partyBuffs.weakSpot) {
       critMultiplier += 0.5;
     }
@@ -2129,9 +3225,124 @@ function computeClickDamage() {
       }
     }
   }
-  
-  return totalDamage + dualWieldDamage;
+
+  console.log('Enemy object on click: ', enemy);
+  console.log(`Enemy on click: ${enemy.name}, Type: ${enemy.type}, HP: ${enemy.hp}/${enemy.maxHp}`);
+  const enemyType = enemy.type; // however you store enemy classification
+  console.log(`Enemy type: ${enemyType}`);
+  // Apply extra damage vs enemy type bonuses from all equipped gear
+  if (enemyType) {
+    const extraBonus = getExtraDamageBonus(enemyType, livingMembers);
+    if (extraBonus > 0) {
+      totalDamage = Math.floor(totalDamage * (1 + extraBonus / 100));
+      console.log(`Applied ${extraBonus}% bonus vs ${enemyType}, Damage: ${totalDamage}`);
+    }
+  }
+
+  const total = totalDamage + dualWieldDamage;
+  // Lifesteal: for Bloodmore we heal based on the wielder only
+  if (usedBloodmore) {
+    
+    const wielder = livingMembers.find(c => c.equipment?.weapon?.id === "bloodmore");
+    if (wielder) applyLifestealPerCharacter(bloodDamage, [wielder]);
+  } else {
+    applyLifestealPerCharacter(total, livingMembers);
+  }
+    
+  return total;
 }
+
+// Extra damage vs enemy type system
+function getExtraDamageBonus(enemyType, livingMembers) {
+  let bonus = 0;
+  for (const member of livingMembers) {
+    for (const slot in member.equipment) {
+      const item = member.equipment[slot];
+      if (!item) continue;
+      for (const b of item.stats.bonuses) {
+        switch (enemyType) {
+          case "beast":
+            if (b.key === "hunter") bonus += b.value;
+            break;
+          case "humanoid":
+            if (b.key === "executioner") bonus += b.value;
+            break;
+          case "demon":
+            if (b.key === "excommunicator") bonus += b.value;
+            break;
+          case "undead":
+            if (b.key === "banisher") bonus += b.value;
+            break;
+          case "dragon":
+            if (b.key === "slayer") bonus += b.value;
+            break;
+        }
+      }
+    }
+  }
+  return bonus;
+}
+
+
+// Lifesteal system
+function applyLifestealPerCharacter(totalDamage, livingMembers) {
+  if (totalDamage <= 0) return;
+  
+
+  livingMembers.forEach((member, index) => {
+    let lifestealPercent = 0;
+
+    // Collect lifesteal from this member's gear
+    for (const slot in member.equipment) {
+      const item = member.equipment[slot];
+      if (!item) continue;
+
+      for (const b of item.stats.bonuses) {
+        if (b.key === "lifesteal") {
+          lifestealPercent += b.value;
+        }
+      }
+    }
+
+    if (lifestealPercent > 0) {
+      const healAmount = Math.floor(totalDamage * (lifestealPercent / 100));
+      if (healAmount > 0) {
+        member.hp = Math.min(member.maxHp, member.hp + healAmount);
+
+        console.log(`${member.classKey} healed for ${healAmount} via lifesteal`);
+        // Show portrait heal effects
+        showPortraitFloatingMessage(member.id, `+${healAmount}`, 'lifesteal');
+        flashHealOnCharacter(member.id);
+      }
+    }
+  });
+
+  updatePartyBars();
+}
+
+function computeBloodmoreAOE(character) {
+  const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
+  const might = character.totalStats.Might || 0;
+
+  // Base power scales with level and might
+  let power = Math.floor((partyLevel * 2) + (might * 1.5));
+
+  let totalDamage = 0;
+  for (let i = 0; i < state.enemies.length; i++) {
+    if (state.waveComplete) return;
+    const enemy = state.enemies[i];
+    if (enemy.hp <= 0) continue;
+
+    enemy.hp = Math.max(0, enemy.hp - power);
+    totalDamage += power;
+    onEnemyDamaged(i);
+  }
+
+  showFloatingMessage(`AOE ${totalDamage}`, 'crit'); // placeholder effect
+
+  return totalDamage;
+}
+
 
 
 // Enhanced enemy attack function with boss special abilities
@@ -2204,19 +3415,39 @@ function attemptBlock(livingMembers) {
   return null; // No block successful
 }
 
-
-
 // Dodging system
+// Helper function to get evasion bonus from gear
+function getEvasionBonus(character) {
+  let evasionBonus = 0;
+  
+  for (const slot in character.equipment) {
+    const item = character.equipment[slot];
+    if (!item) continue;
+    
+    for (const bonus of item.stats.bonuses) {
+      if (bonus.key === "evasion") {
+        evasionBonus += bonus.value;
+      }
+    }
+  }
+  
+  return evasionBonus;
+}
+
+// Updated dodging system with evasion
 function computeDodgeChance(character) {
   if (character.hp <= 0) return 0;
   if (character.statusEffect && character.statusEffect.some(effect => effect.key === "curse")) return 0; // cursed character can't dodge
-
+  
   const baseDodge = character.totalStats.Dexterity * 0.8; // 0.8% per dex point
   const luckBonus = character.totalStats.Luck * 0.1; // 0.1% per luck point  
   const skillBonus = (character.skills.dodging || 0) * 2; // 2% per dodging skill rank
   const quickstepBonus = character.quickstepActive ? 100 : 0; // Guaranteed dodge if quickstep active
+  const evasionBonus = getEvasionBonus(character); // Direct % bonus from gear
   
-  return character.quickstepActive ? quickstepBonus / 100 : Math.min(75, baseDodge + luckBonus + skillBonus + quickstepBonus) / 100;
+  return character.quickstepActive ? 
+    quickstepBonus / 100 : 
+    Math.min(75, baseDodge + luckBonus + skillBonus + evasionBonus) / 100;
 }
 
 function attemptDodge(character) {
@@ -2443,10 +3674,15 @@ function clickAttackEnemy(index) {
 
   const isDodge = accuracyCheck(enemy);
   if (!isDodge){
-    const dmg = computeClickDamage();
+    const dmg = computeClickDamage(index);
     if (dmg > 0) {
+      // Apply damage
       enemy.hp = Math.max(0, enemy.hp - dmg);
-      onEnemyDamaged(index);
+      // Apply lifesteal healing
+      // applyLifestealPerCharacter(dmg);      // moved to computeClickDamage for cleaner code
+      if (!state.waveComplete){
+        onEnemyDamaged(index);
+      }
     }
   } else {
     console.log('Enemy dodged!');
@@ -2466,65 +3702,151 @@ function accuracyCheck(enemy){
 }
 
 function onEnemyDamaged(index) {
-  // Handle game logic first
-  setTimeout(() => {
-    renderEnemyListWithVariants();
-    
-    // Apply animation after DOM is updated
-    const enemyRow = document.querySelector(`.enemy-row[data-index="${index}"] .hp`);
-    if (enemyRow) {
-      // Remove class first if it exists to ensure animation can retrigger
+  // Update the UI immediately for the damaged enemy
+  renderEnemyListWithVariants();
+
+  // Apply animation after the DOM is updated
+  const enemyRow = document.querySelector(`.enemy-row[data-index="${index}"] .hp`);
+  if (enemyRow) {
+    enemyRow.classList.remove("damage-flash");
+    enemyRow.offsetHeight; // Force reflow
+    enemyRow.classList.add("damage-flash");
+
+    // Remove the animation class after a short delay
+    setTimeout(() => {
       enemyRow.classList.remove("damage-flash");
+    }, 400);
+  }
+
+  const enemy = state.enemies[index];
+  if (!enemy) return; // Exit if the enemy no longer exists
+
+  const livingMembers = getLivingPartyMembers();
+
+  // Enemy survived -> attempt to apply stun
+  if (enemy.hp > 0 && enemy.isStunnable && !enemy.effects.includes('stun')) {
+    applyStunChance(enemy);
+  }
+
+  // Enemy defeated: handle rewards and cleanup
+  if (enemy.hp <= 0) {
+    // Pickpocket bonus and other reward logic
+    const pickPocketBonus = livingMembers.reduce((total, character) => {
+      return total + (character.skills.pickPocket || 0) * 0.1;
+    }, 0);
+
+    // Loot drop chance calculation
+    if (enemy.lootTier !== undefined) {
+      const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
+      const baseDropChance = 0.5;
+      const levelDiff = partyLevel - enemy.level;
+      let dropChance = baseDropChance;
       
-      // Force reflow to ensure class removal is processed
-      enemyRow.offsetHeight;
+      if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.forceDrops) {
+        dropChance = 1.0;
+      } else {
+        if (enemy.isBoss) {
+          dropChance = 1.0;
+        } else {
+          if (levelDiff > 0) {
+            dropChance *= Math.max(0, 1 - (levelDiff / 5));
+          }
+          if (enemy.variant === "champion") dropChance += 0.10;
+          if (enemy.variant === "corrupted") dropChance += 0.05;
+          if (enemy.variant === "elite") dropChance += 0.05;
+          dropChance = Math.min(dropChance, 1.0);
+        }
+      }
       
-      // Add class to trigger animation
-      enemyRow.classList.add("damage-flash");
-      
-      setTimeout(() => {
-        enemyRow.classList.remove("damage-flash");
-      }, 400);
-    }
+      const isArtifactDrop = (enemy.isBoss && Math.random() < 0.2) || 
+                            (enemy.variant === "champion" && enemy.level > 20 && Math.random() < 0.02);
 
-    const enemy = state.enemies[index];
-    const livingMembers = getLivingPartyMembers();
-
-    if (enemy && enemy.hp <= 0) {
-      // existing death/reward logic...
-      const pickPocketBonus = livingMembers.reduce((total, character) => {
-        return total + (character.skills.pickPocket || 0) * 0.1;
-      }, 0);
-
-      const bonusGold = Math.round(enemy.rewardGold * pickPocketBonus);
-      state.gold += enemy.rewardGold + bonusGold;
-      goldEl.textContent = String(state.gold);
-
-      livingMembers.forEach(c => {
-        const learningRank = c.skills.learning || 0;
-        const learningBonus = learningRank * 0.1;
-        const finalXp = Math.round(enemy.rewardXp * (1 + learningBonus));
-        c.xp += finalXp;
-      });
-
-      updatePartyBars();
-      renderSidebar();
-
-      if (state.focusedEnemyIndex === index) {
-        state.focusedEnemyIndex = null;
+      // First roll for artifact
+      let artifactLoot = null;
+      if (isArtifactDrop) {
+        artifactLoot = generateLootFromTier("artifact");
+        if (artifactLoot && !state.foundArtifacts.has(artifactLoot.id)) {
+          state.foundArtifacts.add(artifactLoot.id);
+          state.pendingLoot.push(artifactLoot);
+        }
       }
 
-      if (state.enemies.every((e) => e.hp <= 0)) {
-        setTimeout(() => {
-          showWaveCompleteMenuOrContinue();
-        }, 200);
+      // Then roll for normal loot
+      if (Math.random() < dropChance) {
+        const loot = generateLootFromTier(enemy.lootTier);
+        if (loot) state.pendingLoot.push(loot);
       }
     }
-  }, 50);
+
+    const bonusGold = Math.round(enemy.rewardGold * pickPocketBonus);
+    state.gold += enemy.rewardGold + bonusGold;
+    goldEl.textContent = String(state.gold);
+
+    livingMembers.forEach(c => {
+      const learningRank = c.skills.learning || 0;
+      const learningBonus = learningRank * 0.1;
+      const finalXp = Math.round(enemy.rewardXp * (1 + learningBonus));
+      c.xp += finalXp;
+    });
+
+    updatePartyBars();
+    renderSidebar();
+
+    if (state.focusedEnemyIndex === index) {
+      state.focusedEnemyIndex = null;
+    }
+  }
+
+    if (state.enemies.every((e) => e.hp <= 0)) {
+    // The wave is truly over
+    console.log("All enemies defeated. Showing wave complete menu.");
+    state.waveComplete = true;
+    showWaveCompleteMenuOrContinue();
+  }
+
+}
+
+// Stun application logic
+function applyStunChance(enemy) {
+  if (!enemy || enemy.hp <= 0) return;
+
+  const livingMembers = getLivingPartyMembers();
+  let stunChance = 0;
+
+  // Sum stun chance across all party gear
+  livingMembers.forEach(member => {
+    for (const slot in member.equipment) {
+      const item = member.equipment[slot];
+      if (!item) continue;
+
+      for (const b of item.stats.bonuses) {
+        if (b.key === "stun") {
+          stunChance += b.value; // add %
+        }
+      }
+    }
+  });
+
+  if (stunChance > 0) {
+    const roll = Math.random() * 100;
+    if (roll < stunChance) {
+      addEffectToEnemy(enemy, { key: "stun", duration: 1 });
+      console.log(`${enemy.name} is stunned!`);
+    }
+  }
+}
+
+// Add effect to enemy (like stun, burn, poison, etc.)
+function addEffectToEnemy(enemy, effect) {
+  if (!enemy.effects) enemy.effects = [];
+  
+  // For now, just push — later we can check for duplicates
+  enemy.effects.push(effect);
 }
 
 // Enemy attacks party over time
 // Enhanced enemy attacks with variant-aware damage
+/* attacking without speed
 function beginEnemyAttacksWithVariants() {
   stopEnemyAttacks();
  
@@ -2634,6 +3956,138 @@ function beginEnemyAttacksWithVariants() {
     }
   }, 1500);
 }
+*/
+function beginEnemyAttacksWithVariants() {
+  stopEnemyAttacks(); // clear old timers
+
+  state.enemyAttackTimers = [];
+
+  const livingEnemies = state.enemies.filter(e => e.hp > 0);
+  if (livingEnemies.length === 0) return;
+
+  for (const enemy of livingEnemies) {
+    scheduleEnemyAttack(enemy);
+  }
+}
+
+function scheduleEnemyAttack(enemy) {
+  if (!enemy || enemy.hp <= 0) return;
+
+  console.log(enemy); // to show the enemy object for adding stun (and maybe other effects later)
+  
+  // If enemy is stunned, skip this attack and reschedule
+  // If stunned, skip this attack
+  if (enemy.effects && enemy.effects.some(effect => effect.key === "stun")) {
+    console.log(`${enemy.name} is stunned and misses its attack!`);
+
+    // Consume the stun (remove it after skipping)
+    enemy.effects = enemy.effects.filter(e => e.key !== "stun");
+
+    const attackDelay = enemy.speed * 1000;
+    const timerId = setTimeout(() => {
+      scheduleEnemyAttack(enemy);
+    }, attackDelay);
+
+    state.enemyAttackTimers.push(timerId);
+    return;
+  }
+
+  const attackDelay = enemy.speed * 1000; // speed in seconds → ms
+  const timerId = setTimeout(() => {
+    performEnemyAttack(enemy.instanceId);
+
+    // Reschedule only if both sides still alive
+    const updatedEnemy = state.enemies.find(e => e.instanceId === enemy.instanceId);
+    if (updatedEnemy && updatedEnemy.hp > 0 && getLivingPartyMembers().length > 0) {
+      scheduleEnemyAttack(updatedEnemy);
+    }
+  }, attackDelay);
+
+  // Keep track so we can cancel all timers later
+  state.enemyAttackTimers.push(timerId);
+}
+
+function performEnemyAttack(instanceId) {
+  const enemy = state.enemies.find(e => e.instanceId === instanceId);
+  if (!enemy || enemy.hp <= 0) return; // enemy is dead
+  //console.log(enemy); // debug line
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) return;
+
+  const target = chooseTarget(livingMembers);
+  const { damage: dmg, isCrit } = computeEnemyAttackDamageWithVariantAndAbilities(enemy);
+
+  if (enemy.isAoe) {
+    for (const member of livingMembers) {
+      if (attemptDodge(member)){
+        showPortraitFloatingMessage(member.id, "DODGE!", "dodge"); 
+        continue;
+      }
+      member.hp = Math.max(0, member.hp - dmg);
+
+    // handle reflect damage for AoE attacks
+    if (member.reflectAmount > 0){
+      const reflectDmgAmount = Math.round((dmg * member.reflectAmount) / 100);
+      enemy.hp -= reflectDmgAmount;
+      
+      // Get the enemy index by finding it in the state.enemies array
+      const enemyIndex = state.enemies.findIndex(e => e.instanceId === enemy.instanceId);
+      if (enemyIndex !== -1) {
+        onEnemyDamaged(enemyIndex);
+      }
+      
+      console.log(`${member.name} reflected ${reflectDmgAmount} damage`);
+    }
+
+
+      applyEnemyStatusEffects(enemy, member);
+      flashDamageOnCharacter(member.id);
+      if (isCrit) showPortraitFloatingMessage(member.id, `${dmg} CRIT!`, "crit");
+    }
+  } else {
+    if (attemptDodge(target)) {
+      showPortraitFloatingMessage(target.id, "DODGE!", "dodge");  
+      return;
+    }
+    target.hp = Math.max(0, target.hp - dmg);
+
+    // handle reflect damage
+    if (target.reflectAmount > 0){
+      reflectDmgAmount = Math.round((dmg * target.reflectAmount) / 100);
+      enemy.hp -= reflectDmgAmount;
+      
+      // Get the enemy index by finding it in the state.enemies array
+      const enemyIndex = state.enemies.findIndex(e => e.instanceId === enemy.instanceId);
+      if (enemyIndex !== -1) {
+        onEnemyDamaged(enemyIndex);
+      }
+      
+      console.log('Reflected damage amount: ', reflectDmgAmount)
+    }
+    
+    applyEnemyStatusEffects(enemy, target);
+    flashDamageOnCharacter(target.id);
+    if (isCrit) showPortraitFloatingMessage(target.id, `${dmg} CRIT!`, "crit");
+  }
+
+  processStatusEffects();
+  updatePartyBars();
+  renderSidebar();
+
+  if (getLivingPartyMembers().length === 0) {
+    stopEnemyAttacks();
+    stopAutoAttacks();
+    checkGameOver();
+  }
+}
+
+function stopEnemyAttacks() {
+  if (state.enemyAttackTimers) {
+    for (const id of state.enemyAttackTimers) clearTimeout(id);
+  }
+  state.enemyAttackTimers = [];
+}
+
 
 // helper to avoid copy-paste
 function applyEnemyStatusEffects(enemy, target) {
@@ -2826,12 +4280,14 @@ function beginAutoAttacks() {
     }
     
     if (targetIndex >= 0) {
-      const dmg = computeClickDamage();
+      const dmg = computeClickDamage(targetIndex);
       if (dmg > 0) { // Only attack if we can do damage
         const enemy = state.enemies[targetIndex];
         const isDodge = accuracyCheck(enemy);
         if (!isDodge){
           enemy.hp = Math.max(0, enemy.hp - dmg);
+          // Apply lifesteal healing
+         // applyLifestealPerCharacter(dmg); // moved to computeClickDamage for cleaner code
         } else {
           console.log('Enemy dodged!');
         }
@@ -2933,7 +4389,6 @@ function migrateToNewSystem() {
       
       if (name.includes("skeleton")) templateId = "skeleton";
       else if (name.includes("bandit")) templateId = "bandit";
-      else if (name.includes("wolf")) templateId = "wolf";
       else if (name.includes("orc")) templateId = "orc";
       
       return {
@@ -2949,6 +4404,12 @@ function migrateToNewSystem() {
 
 // Wave completion menu
 function showWaveCompleteMenu() {
+  // Check if menu already exists
+  if (document.getElementById("wave-complete-menu")) {
+    console.log("Wave complete menu already exists, skipping creation");
+    return;
+  }
+
   stopEnemyAttacks();
   stopAutoAttacks();
   const deadMembers = state.party.filter(member => member.hp <= 0);
@@ -2957,7 +4418,8 @@ function showWaveCompleteMenu() {
   const allMembersAlive = deadMembers.length === 0;
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
   const restCost = Math.ceil(50 + partyLevel * 5); // example scaling formula
-
+  const lootCount = state.pendingLoot.length;
+  
   const menu = document.createElement("div");
   menu.id = "wave-complete-menu";
   menu.className = "modal-overlay";
@@ -2970,11 +4432,18 @@ function showWaveCompleteMenu() {
       <button class="btn large" data-action="next-wave">Next Wave</button>
       <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
       <button class="btn large" data-action="buy-spells">Buy Spells</button>
+      ${lootCount > 0 
+        ? `<button class="btn large" data-action="open-loot">Open Loot Chest (${lootCount})</button>`
+        : ""}
       <button class="btn large" data-action="rest" ${state.gold < restCost ? "disabled" : ""}>
         Inn - Rest and refill potions - ${restCost} Gold
       </button>
-      <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
+      <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>
+        Revive All (${reviveCost} Gold)
+      </button>
+      <button class="btn large" data-action="party-stats">View Party Stats</button>
     </div>
+
   </div>
 `;
   
@@ -3039,6 +4508,7 @@ function showDungeonCompleteMenu() {
   const allMembersAlive = deadMembers.length === 0;
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
   const restCost = Math.ceil(50 + partyLevel * 5); // example scaling formula
+  //const loot = getLootDrop();
   
   // Apply dungeon reward
   applyDungeonReward(currentArea.dungeonReward);
@@ -3115,7 +4585,8 @@ function applyDungeonReward(reward) {
       Object.entries(reward.stats).forEach(([stat, value]) => {
         character.baseStats[stat] += value;
       });
-      computeTotals(character);
+      //computeTotals(character);
+      recomputeCharacterStats(character);
       // Heal to new max HP if health increased
       if (reward.stats.Endurance) {
         character.hp = character.maxHp;
@@ -3130,7 +4601,8 @@ function applyDungeonReward(reward) {
         Object.entries(reward.stats).forEach(([stat, value]) => {
           character.baseStats[stat] += value;
         });
-        computeTotals(character);
+       // computeTotals(character);
+       recomputeCharacterStats(character); // updated function name
         if (reward.stats.Endurance) {
           character.hp = character.maxHp;
         }
@@ -3358,8 +4830,9 @@ function handleWaveMenuActionNew(action) {
       if (state.gold >= restCost) {
         state.gold -= restCost;
         goldEl.textContent = String(state.gold);
-
-        for (const c of state.party) {
+        // this should only work for livingMembers who are not diseased
+        livingMembers = getLivingPartyMembers();
+        for (const c of livingMembers) {
           const diseased = c.statusEffect?.some(e => e.key === "disease");
           if (!diseased) {
             c.hp = c.maxHp;
@@ -3385,6 +4858,22 @@ function handleWaveMenuActionNew(action) {
       renderSidebar();
       showWaveCompleteMenu();
       break;
+
+    case "open-loot":
+      if (state.pendingLoot.length > 0) {
+        const loot = state.pendingLoot.shift(); // remove first item
+        //console.log(loot); // debugging line
+        showLootChestMenu(loot);
+      } else {
+        showWaveCompleteMenu();
+      }
+      break;
+
+    case "party-stats":
+      showPartyStatsMenu();
+      break;
+
+  
   }
 }
 
@@ -3400,9 +4889,10 @@ function showSkillsMenu() {
     const classDef = CLASS_DEFS[character.classKey] || CLASS_DEFS[character.classKey];
 
     // Filter skills by class
-    const availableSkills = Object.values(SKILL_DEFS).filter(skill =>
-      skill.allowedClasses.includes(character.classKey)
-    );
+    const availableSkills = Object.values(SKILL_DEFS).filter(skill => {
+      const currentRank = character.skills[skill.key] || 0;
+      return skill.allowedClasses.includes(character.classKey) && currentRank < 10;
+    });
 
     const skillRows = availableSkills.map((sk) => {
       const rank = character.skills[sk.key] || 0;
@@ -3482,27 +4972,33 @@ function updateSkillsMenuUI() {
     );
 
     availableSkills.forEach(sk => {
-      const row = skillsListEl.querySelector(`[data-character="${charIndex}"][data-skill="${sk.key}"]`).closest('.skill-row');
-      if (row) {
-        const rank = character.skills[sk.key] || 0;
-        const cost = getSkillUpgradeCost(sk.baseCost, rank);
-        const disabled = state.gold < cost || rank >= 10 ? "disabled" : "";
+      const btn = skillsListEl.querySelector(
+        `[data-character="${charIndex}"][data-skill="${sk.key}"]`
+      );
+      if (!btn) return; // Skill row no longer exists (maxed out)
 
-        // Update rank, cost, and button state
-        row.querySelector('.skill-name .pill').textContent = `Rank ${rank}`;
-        row.querySelector('.skill-desc').textContent = `${sk.desc} • Cost: ${cost} gold`;
+      const row = btn.closest('.skill-row');
+      if (!row) return;
+      
+      const rank = character.skills[sk.key] || 0;
+      const cost = getSkillUpgradeCost(sk.baseCost, rank);
+      const disabled = state.gold < cost || rank >= 10 ? "disabled" : "";
 
-        const button = row.querySelector('button');
-        if (disabled) {
-          button.setAttribute('disabled', '');
-          if (rank >= 10) {
-            row.style.display = 'none';
-          }
-        } else {
-          button.removeAttribute('disabled');
+      // Update rank, cost, and button state
+      row.querySelector('.skill-name .pill').textContent = `Rank ${rank}`;
+      row.querySelector('.skill-desc').textContent = `${sk.desc} • Cost: ${cost} gold`;
+
+      const button = row.querySelector('button');
+      if (disabled) {
+        button.setAttribute('disabled', '');
+        if (rank >= 10) {
+          row.style.display = 'none';
         }
+      } else {
+        button.removeAttribute('disabled');
       }
     });
+
   });
 }
 
@@ -3704,6 +5200,279 @@ function buySpellForCharacter(characterIndex, spellKey) {
     return true;
   }
 }
+
+function showPartyStatsMenu() {
+  let currentIndex = 0; // Track which character is being displayed
+
+  const menu = document.createElement("div");
+  menu.className = "modal-overlay";
+
+  function renderCharacter(index) {
+  const char = state.party[index];
+  const classDef = CLASS_DEFS[char.classKey];
+  const displayName = char.name || classDef?.name || `Hero ${index + 1}`;
+
+  // --- Skills (only those with rank > 0) ---
+  const skillsHtml = Object.entries(char.skills || {})
+    .filter(([_, rank]) => rank > 0)
+    .map(([key, rank]) => {
+      const skill = SKILL_DEFS[key];
+      return `<li>${skill.name} (Rank ${rank})</li>`;
+    })
+    .join("") || "<li>No skills yet</li>";
+
+  // --- Equipment attribute totals ---
+  const totals = {
+    Might: 0,
+    Dexterity: 0,
+    Intellect: 0,
+    Personality: 0,
+    Endurance: 0,
+    Speed: 0,
+    Luck: 0,
+    Accuracy: 0,
+    HP: 0,
+    MP: 0,
+    stun: 0,
+    lifesteal: 0,
+    baseDmg: 0,
+    critDmg: 0,
+    spellDmg: 0,
+    evasion: 0
+  };
+
+for (const slot in char.equipment) {
+  const item = char.equipment[slot];
+  if (!item) continue;
+
+  // bonuses[] are things like stun/lifesteal/etc.
+  for (const b of item.stats.bonuses) {
+    if (totals.hasOwnProperty(b.key)) {
+      totals[b.key] += b.value;
+    }
+  }
+
+  // flat stats directly on the item
+  if (item.stats.might) {
+    totals.Might += item.stats.might;
+  }
+  if (item.stats.hp) {
+    totals.HP += item.stats.hp;
+  }
+  if (item.stats.Dexterity) {
+    totals.Dexterity += item.stats.Dexterity;
+  }
+  if (item.stats.Intellect) {
+    totals.Intellect += item.stats.Intellect;
+  }
+  if (item.stats.Personality) {
+    totals.Personality += item.stats.Personality;
+  }
+  if (item.stats.Endurance) {
+    totals.Endurance += item.stats.Endurance;
+  }
+  if (item.stats.Speed) {
+    totals.Speed += item.stats.Speed;
+  }
+  if (item.stats.Luck) {
+    totals.Luck += item.stats.Luck;
+  }
+  if (item.stats.Accuracy) {
+    totals.Accuracy += item.stats.Accuracy;
+  }
+}
+
+  // --- Helper to render stat + bonus ---
+  function statLine(label, base, bonus) {
+    return bonus > 0
+      ? `${label}: ${base} <span style="color:green;">(+${bonus})</span>`
+      : `${label}: ${base}`;
+  }
+
+  // --- Character stats with bonuses shown separately ---
+  const statsHtml = `
+    <div class="character-section">
+      <h3>${displayName} (Lvl ${char.level})</h3>
+    <p>${statLine("HP", `${char.hp}/${char.maxHp}`, totals.HP)}</p>
+    <p>${statLine("MP", `${char.mp}/${char.maxMp}`, totals.MP)}</p>
+    <p>${statLine("Might", char.totalStats.Might, totals.Might)}</p>
+    <p>${statLine("Dexterity", char.totalStats.Dexterity, totals.Dexterity)}</p>
+    <p>${statLine("Intellect", char.totalStats.Intellect, totals.Intellect)}</p>
+    <p>${statLine("Personality", char.totalStats.Personality, totals.Personality)}</p>
+    <p>${statLine("Endurance", char.totalStats.Endurance, totals.Endurance)}</p>
+    <p>${statLine("Speed", char.totalStats.Speed, totals.Speed)}</p>
+    <p>${statLine("Luck", char.totalStats.Luck, totals.Luck)}</p>
+    <p>${statLine("Accuracy", char.totalStats.Accuracy, totals.Accuracy)}</p>
+    <p>Evasion: ${getEvasionBonus(char).toFixed(2)}%</p>
+    <p>Spell Damage Bonus: ${getSpellDamageBonus(char).toFixed(2)}%</p>
+
+      <h3>Skills</h3>
+      <ul>${skillsHtml}</ul>
+
+      <h3>Equipment Attribute Totals</h3>
+      <ul>
+        <li>Stun Chance: ${totals.stun.toFixed(2)}%</li>
+        <li>Lifesteal: ${totals.lifesteal.toFixed(2)}%</li>
+        <li>Base Damage+: ${totals.baseDmg.toFixed(2)}%</li>
+        <li>Crit Damage+: ${totals.critDmg.toFixed(2)}%</li>
+        <li>Spell Damage+: ${totals.spellDmg.toFixed(2)}%</li>
+        <li>Evasion+: ${totals.evasion.toFixed(2)}%</li>
+      </ul>
+    </div>
+  `;
+
+  menu.querySelector(".character-container").innerHTML = statsHtml;
+}
+
+
+  // --- Base menu structure ---
+  menu.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>Character Stats</h2>
+      </div>
+      <div class="character-container"></div>
+      <div class="modal-footer">
+        <button class="btn" data-action="prev">Previous</button>
+        <button class="btn" data-action="next">Next</button>
+        <button class="btn" data-action="inventory" disabled>Inventory</button>
+        <button class="btn" data-action="return">Return</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  // --- Render the first character ---
+  renderCharacter(currentIndex);
+
+  // --- Button events ---
+  menu.querySelector("[data-action='prev']").addEventListener("click", () => {
+    currentIndex = (currentIndex - 1 + state.party.length) % state.party.length;
+    renderCharacter(currentIndex);
+  });
+
+  menu.querySelector("[data-action='next']").addEventListener("click", () => {
+    currentIndex = (currentIndex + 1) % state.party.length;
+    renderCharacter(currentIndex);
+  });
+
+  menu.querySelector("[data-action='return']").addEventListener("click", () => {
+    menu.remove();
+    showWaveCompleteMenu(); // back out
+  });
+
+  menu.querySelector("[data-action='inventory']");
+
+button.disabled = true; // disable the button
+
+button.addEventListener("click", () => {
+  if (!button.disabled) {
+    // button is not disabled, proceed with the action
+    menu.remove();
+    showInventoryMenu(); // go to inventory
+  }
+});
+}
+
+function showInventoryMenu() {
+  let currentIndex = 0; // track current character
+
+  const menu = document.createElement("div");
+  menu.className = "modal-overlay";
+
+function renderCharacter(index) {
+  const char = state.party[index];
+  const classDef = CLASS_DEFS[char.classKey];
+  const displayName = char.name || classDef?.name || `Hero ${index + 1}`;
+
+  // Safely handle missing equipment
+  const equipment = char.equipment || {};
+
+  // Equipment list
+  const equipHtml = Object.entries(equipment)
+    .map(([slot, item]) => {
+      if (!item) {
+        return `
+          <div class="inventory-row">
+            <strong>${slot}:</strong> <span class="hint">Empty</span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="inventory-row">
+          <strong>${slot}:</strong> ${item.flavorName || item.tier}
+          <button class="btn small" data-action="unequip" data-slot="${slot}">Unequip</button>
+        </div>
+      `;
+    })
+    .join("");
+
+  const html = `
+    <div class="character-section">
+      <h3>${displayName} (Lvl ${char.level})</h3>
+      <div class="inventory-list">
+        ${equipHtml || "<div class='hint'>No equipment</div>"}
+      </div>
+    </div>
+  `;
+
+  menu.querySelector(".character-container").innerHTML = html;
+
+  // Re-bind Unequip buttons
+  menu.querySelectorAll("[data-action='unequip']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const slot = btn.getAttribute("data-slot");
+      const item = char.equipment?.[slot];
+      if (item) {
+        state.pendingLoot.push(item);   // move item into pending loot
+        char.equipment[slot] = null;    // clear equipment slot
+        renderCharacter(currentIndex);  // re-render
+      }
+    });
+  });
+}
+
+
+  // Base structure
+  menu.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>Inventory</h2>
+      </div>
+      <div class="character-container"></div>
+      <div class="modal-footer">
+        <button class="btn" data-action="prev">Previous</button>
+        <button class="btn" data-action="next">Next</button>
+        <button class="btn" data-action="return">Return</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  // Initial render
+  renderCharacter(currentIndex);
+
+  // Navigation buttons
+  menu.querySelector("[data-action='prev']").addEventListener("click", () => {
+    currentIndex = (currentIndex - 1 + state.party.length) % state.party.length;
+    renderCharacter(currentIndex);
+  });
+
+  menu.querySelector("[data-action='next']").addEventListener("click", () => {
+    currentIndex = (currentIndex + 1) % state.party.length;
+    renderCharacter(currentIndex);
+  });
+
+  menu.querySelector("[data-action='return']").addEventListener("click", () => {
+    menu.remove();
+    showPartyStatsMenu(); // go back to stats (or wave menu, up to you)
+  });
+}
+
+
 
 // Controls
 
@@ -3989,7 +5758,7 @@ function renderSidebar() {
         character.level += 1;
         character.nextLevelXp = getNextLevelXp(character.level);
         applyLevelGains(character);
-        computeTotals(character);
+        //computeTotals(character);
         character.hp = character.maxHp;
         character.mp = character.maxMp;
         updatePartyBars();
@@ -4032,9 +5801,9 @@ function applyLevelGains(character) {
   for (const [k, v] of Object.entries(gains)) {
     character.baseStats[k] += v;
   }
-  computeTotals(character);
-  applySkillDerivedBonuses(character);
+  recomputeCharacterStats(character);
 }
+
 
 function applySkillDerivedBonuses(character) {
   // Apply bodyBuilding and Meditation percentage bonuses to max stats
@@ -4097,6 +5866,8 @@ function castSpell(character, spellKey) {
     let power;
     let targetAll = false;
     let specialEffect = null;
+    let sparkPower;
+
     switch (spellKey) {
       case "fireBolt":
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
@@ -4124,7 +5895,11 @@ function castSpell(character, spellKey) {
         break;
       case "volley":
         power = 15 + Math.floor(character.totalStats.Dexterity * 0.5);
-        break;        
+        break; 
+      case "sparks":
+        sparkPower = 5 + Math.floor(character.totalStats.Intellect * 0.5 * spMult);
+        soundEffects.play('lightning');
+        break;       
       case "destroyUndead":
         power = 40 + Math.floor(character.totalStats.Intellect * 1.5 * spMult);
         targetAll = true;
@@ -4144,10 +5919,54 @@ function castSpell(character, spellKey) {
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
     }
 
-  if (spellKey === "volley") {
+  // Apply spell damage bonus to all spells (except special effect spells)
+  if (specialEffect !== "percentDamage" && spellKey !== "sparks") {
+    const spellDmgBonus = getSpellDamageBonus(character);
+    if (spellDmgBonus > 0) {
+      power = Math.floor(power * (1 + spellDmgBonus / 100));
+      console.log(`Spell damage with ${spellDmgBonus}% bonus: ${power}`);
+    }
+  } else if (spellKey == "sparks") {
+    const spellDmgBonus = getSpellDamageBonus(character);
+    if (spellDmgBonus > 0){
+      sparkPower = Math.floor(sparkPower * (1 + spellDmgBonus / 100));
+    }
+  }  
+
+  if (spellKey === "sparks") {
+  // Determine the number of sparks (between 3 and 6)
+  const sparks = Math.floor(Math.random() * 3) + 3;
+
+  for (let i = 0; i < sparks; i++) {
+    if (state.waveComplete) return;
+    // Build list of living enemies
+    const livingEnemies = state.enemies
+      .map((enemy, idx) => ({ enemy, idx }))
+      .filter(e => e.enemy.hp > 0);
+
+    if (livingEnemies.length === 0) break; // No valid targets left
+
+    // Pick a random living enemy
+    const pick = livingEnemies[Math.floor(Math.random() * livingEnemies.length)];
+    const enemy = pick.enemy;
+    const idx = pick.idx;
+
+    // Calculate spark power with high variance
+    //let basePower = 8 + Math.floor(character.totalStats.Intellect * 0.7 * spMult);
+    const variance = (Math.random() * 2) + 0.5; // Random multiplier between 0.5 and 2.5
+    power = Math.floor(sparkPower * variance);
+    console.log(`Spark ${i + 1} hit for ${power} damage`);
+    // Apply damage
+    enemy.hp = Math.max(0, enemy.hp - power);
+
+    // Notify enemy damaged
+    onEnemyDamaged(idx);
+  }
+} else if (spellKey === "volley") {
     // volley: 5 random arrows
     const arrows = 5;
     for (let i = 0; i < arrows; i++) {
+      if (state.waveComplete) return;
       // Build list of living enemies
       const livingEnemies = state.enemies
         .map((enemy, idx) => ({ enemy, idx }))
@@ -4170,6 +5989,7 @@ function castSpell(character, spellKey) {
     const currentWaveId = state.currentWave;
     const shards = 7;
     for (let i = 0; i < shards; i++) {
+      if (state.waveComplete) return;
       if (state.currentWave !== currentWaveId) return; // abort if wave changed
       // Build list of living enemies
       const livingEnemies = state.enemies
@@ -4201,6 +6021,7 @@ function castSpell(character, spellKey) {
             enemy.hp = Math.max(0, enemy.hp - power);
           }
           onEnemyDamaged(idx);
+          if (state.waveComplete) return;
         }
       });
     } else {
@@ -4400,6 +6221,25 @@ function castSpell(character, spellKey) {
     }, 1000);
   }
 
+}
+
+// Add this helper function to gather spell damage bonuses
+function getSpellDamageBonus(character) {
+  let spellDmgBonus = 0;
+  
+  // Check all equipped gear for spellDmg bonuses
+  for (const slot in character.equipment) {
+    const item = character.equipment[slot];
+    if (!item) continue;
+    
+    for (const bonus of item.stats.bonuses) {
+      if (bonus.key === "spellDmg") {
+        spellDmgBonus += bonus.value;
+      }
+    }
+  }
+  
+  return spellDmgBonus;
 }
 
 function flashHealOnCharacter(id) {
@@ -4759,6 +6599,9 @@ function closeControlsMenu() {
 
 // --- UI Rendering for Controls Menu ---
 function renderKeybinds() {
+  // Merge new spells from DEFAULT_KEY_SPELL_MAP into keySpellMap
+  keySpellMap = { ...DEFAULT_KEY_SPELL_MAP, ...keySpellMap };
+
   const listEl = document.getElementById("keybinds-list");
   listEl.innerHTML = ""; // Clear existing list
   for (const key in keySpellMap) {
@@ -4776,6 +6619,7 @@ function renderKeybinds() {
 
 function saveControls() {
   localStorage.setItem('keySpellMap', JSON.stringify(keySpellMap));
+  localStorage.setItem('keySpellMapVersion', DEFAULT_VERSION);
   closeControlsMenu();
 }
 
@@ -4794,6 +6638,7 @@ function restartEntireGame() {
   state.completedAreas = [];
   state.focusedEnemyIndex = null;
   state.gold = 0;
+  state.pendingLoot = [];
   state.guaranteedCrits = 0;
   
   // Reset party to level 1
