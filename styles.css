@@ -1004,3 +1004,31 @@ if (!document.getElementById('dungeon-styles')) {
   color: #fff;
   box-shadow: 0 0 8px rgba(230,57,70,0.8);
 }
+
+.inventory-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.inventory-row .slot {
+  min-width: 70px;
+}
+
+.inventory-row .item {
+  flex: 1;
+}
+
+.loot-magic {
+  color: #4a90e2;
+}
+.loot-rare {
+  color: #9b59b6;
+}
+.loot-legendary {
+  color: #f1c40f;
+}
+.loot-artifact {
+  color: #e63946;
+}
