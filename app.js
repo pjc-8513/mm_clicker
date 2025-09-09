@@ -2654,7 +2654,8 @@ function recomputeCharacterStats(character) {
   for (const slot in character.equipment) {
     const item = character.equipment[slot];
     if (item) applyEquipmentStats(character, item, true);
-    if (item.id === "bloodmore") {
+    console.log(item);
+    if (item && item.id === "bloodmore") {
       hasBloodmore = true;
     }
   }
@@ -2667,6 +2668,8 @@ function recomputeCharacterStats(character) {
   // Maintain HP ratio instead of just clamping
   character.hp = Math.floor(character.maxHp * currentHpRatio);
   character.mp = Math.min(character.mp, character.maxMp);
+  if (character.hp > character.maxHp) character.hp = character.maxHp;
+  if (character.mp > character.maxMp) character.mp = character.maxMp;
 }
 
 
@@ -2861,6 +2864,8 @@ function showEquipMenu(loot) {
       // If something is already equipped, push it back to loot box instead of selling
       if (char.equipment?.[loot.slot]) {
         const oldItem = char.equipment[loot.slot];
+        removeEquipmentStats(char, oldItem);
+        if (!state.pendingLoot) state.pendingLoot = [];
         state.pendingLoot.push(oldItem);
       }
 
@@ -5023,9 +5028,10 @@ function upgradeCharacterSkill(characterIndex, skillKey) {
       // Recompute derived maxima
       const beforeHp = character.maxHp;
       const beforeMp = character.maxMp;
-      computeTotals(character);
+      // scomputeTotals(character);
       // Apply skill multipliers to maxima
-      applySkillDerivedBonuses(character);
+      // applySkillDerivedBonuses(character); done in recomputeCharacterStats
+      recomputeCharacterStats(character); // updated function name
       // keep current hp/mp proportional to new max
       if (beforeHp > 0) character.hp = Math.min(character.maxHp, Math.floor(character.hp * (character.maxHp / beforeHp)));
       if (beforeMp > 0) character.mp = Math.min(character.maxMp, Math.floor(character.mp * (character.maxMp / beforeMp)));
@@ -5335,7 +5341,7 @@ for (const slot in char.equipment) {
       <div class="modal-footer">
         <button class="btn" data-action="prev">Previous</button>
         <button class="btn" data-action="next">Next</button>
-        <button class="btn" data-action="inventory" disabled>Inventory</button>
+        <button class="btn" data-action="inventory">Inventory</button>
         <button class="btn" data-action="return">Return</button>
       </div>
     </div>
@@ -5362,17 +5368,11 @@ for (const slot in char.equipment) {
     showWaveCompleteMenu(); // back out
   });
 
-  menu.querySelector("[data-action='inventory']");
-
-button.disabled = true; // disable the button
-
-button.addEventListener("click", () => {
-  if (!button.disabled) {
-    // button is not disabled, proceed with the action
+  menu.querySelector("[data-action='inventory']").addEventListener("click", () => {
+  
     menu.remove();
     showInventoryMenu(); // go to inventory
-  }
-});
+  });
 }
 
 function showInventoryMenu() {
@@ -5381,59 +5381,84 @@ function showInventoryMenu() {
   const menu = document.createElement("div");
   menu.className = "modal-overlay";
 
-function renderCharacter(index) {
-  const char = state.party[index];
-  const classDef = CLASS_DEFS[char.classKey];
-  const displayName = char.name || classDef?.name || `Hero ${index + 1}`;
+  // Helper to format stats (same as equip menu)
+  function formatStats(item) {
+    if (!item) return `<span class="hint">Empty</span>`;
 
-  // Safely handle missing equipment
-  const equipment = char.equipment || {};
+    const coreStats = Object.keys(item.stats)
+      .map(key => {
+        if (key === "bonuses") return;
+        return `${key}: +${item.stats[key]}`;
+      })
+      .filter(Boolean)
+      .join(", ");
 
-  // Equipment list
-  const equipHtml = Object.entries(equipment)
-    .map(([slot, item]) => {
-      if (!item) {
+    const bonusStats = item.stats.bonuses
+      .map(bonus => {
+        const attrDef = LOOT_ATTRIBUTES.find(a => a.key === bonus.key);
+        if (attrDef?.type === "percent") {
+          return `${attrDef.name}: +${bonus.value}%`;
+        } else {
+          return `${bonus.key}: +${bonus.value}`;
+        }
+      })
+      .join(", ");
+
+    return `<span class="loot-${item.tier}">
+      ${LOOT_TIERS[item.tier].name} ${item.flavorName}
+      <span class="stats">(${[coreStats, bonusStats].filter(Boolean).join(", ")})</span>
+    </span>`;
+  }
+
+  function renderCharacter(index) {
+    const char = state.party[index];
+    const classDef = CLASS_DEFS[char.classKey];
+    const displayName = char.name || classDef?.name || `Hero ${index + 1}`;
+
+    // Safely handle missing equipment
+    const equipment = char.equipment || {};
+
+    // Equipment list
+    const equipHtml = Object.entries(equipment)
+      .map(([slot, item]) => {
         return `
           <div class="inventory-row">
-            <strong>${slot}:</strong> <span class="hint">Empty</span>
+            <strong class="slot">${slot}:</strong>
+            <span class="item">${formatStats(item)}</span>
+            ${item ? `<button class="btn small" data-action="unequip" data-slot="${slot}">Unequip</button>` : ""}
           </div>
         `;
-      }
+      })
+      .join("");
 
-      return `
-        <div class="inventory-row">
-          <strong>${slot}:</strong> ${item.flavorName || item.tier}
-          <button class="btn small" data-action="unequip" data-slot="${slot}">Unequip</button>
+    const html = `
+      <div class="character-section">
+        <h3>${displayName} (Lvl ${char.level})</h3>
+        <div class="inventory-list">
+          ${equipHtml || "<div class='hint'>No equipment</div>"}
         </div>
-      `;
-    })
-    .join("");
-
-  const html = `
-    <div class="character-section">
-      <h3>${displayName} (Lvl ${char.level})</h3>
-      <div class="inventory-list">
-        ${equipHtml || "<div class='hint'>No equipment</div>"}
       </div>
-    </div>
-  `;
+    `;
 
-  menu.querySelector(".character-container").innerHTML = html;
+    menu.querySelector(".character-container").innerHTML = html;
 
-  // Re-bind Unequip buttons
-  menu.querySelectorAll("[data-action='unequip']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const slot = btn.getAttribute("data-slot");
-      const item = char.equipment?.[slot];
-      if (item) {
-        state.pendingLoot.push(item);   // move item into pending loot
-        char.equipment[slot] = null;    // clear equipment slot
-        renderCharacter(currentIndex);  // re-render
-      }
+    // Re-bind Unequip buttons
+    menu.querySelectorAll("[data-action='unequip']").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const slot = btn.getAttribute("data-slot");
+        const item = char.equipment?.[slot];
+        if (item) {
+          state.pendingLoot.push(item);
+          char.equipment[slot] = null;
+          renderCharacter(currentIndex);
+          removeEquipmentStats(char, item);
+          recomputeCharacterStats(char);
+          updatePartyBars();
+          renderSidebar();
+        }
+      });
     });
-  });
-}
-
+  }
 
   // Base structure
   menu.innerHTML = `
@@ -5468,9 +5493,10 @@ function renderCharacter(index) {
 
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     menu.remove();
-    showPartyStatsMenu(); // go back to stats (or wave menu, up to you)
+    showPartyStatsMenu();
   });
 }
+
 
 
 
