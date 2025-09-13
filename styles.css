@@ -562,6 +562,37 @@ body {
   border: 1px solid #b89c59;
 }
 
+/* Styling for Traps */
+.trap-chance {
+  font-size: 0.85em;
+  color: #ffb347; /* a warm orange/yellow */
+  margin-left: 6px;
+}
+
+.trap-row {
+  background-color: #4a2e2a;  /* Rusty dark red-brown */
+  border: 1px solid #b85c4a;  /* Lighter rust red border */
+}
+
+.trap-row .enemy-name {
+  color: #ff6347; /* Tomato red for danger */
+  font-weight: bold;
+}
+
+.bar.hp.trap .fill {
+  background-color: #b85c4a; /* Rust red fill */
+}
+
+.trap-row.exploding {
+  animation: trapBoom 0.5s ease-out;
+}
+
+@keyframes trapBoom {
+  0% { background-color: #4a2e2a; }
+  50% { background-color: #ff2e2e; }
+  100% { background-color: #000; }
+}
+
 const dungeonStyles = `
 .dungeon-area {
   border: 2px solid #ff6b35;
