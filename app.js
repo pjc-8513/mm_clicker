@@ -3,8 +3,9 @@ const DEBUG_CONFIG = {
   enabled: false,         // Master switch to enable/disable debug features
   
   // Character/Level debug
-  forceStartingLevel: 1,  // Set to 0 or false to disable
+  forceStartingLevel: 12,  // Set to 0 or false to disable
   startingGold: 100000,
+  currentAreaId: "goblinwatch", // or set to false
   
   // Loot debug
   forceDrops: true,        // Every enemy drops loot
@@ -27,7 +28,8 @@ const DEBUG_CONFIG = {
     executioner: true,
     excommunicator: false,
     banisher: false,
-    slayer: false
+    slayer: false,
+    backstab: false
 
   },
   
@@ -60,7 +62,8 @@ const LOOT_ATTRIBUTES = [
   { key: "executioner", name: "Executioner", type: "percent", weight: 8 }, // fairly common extra damage to humans
   { key: "excommunicator", name: "Excommunicator", type: "percent", weight: 3 }, // slightly more rare extra damage to demons (there aren't any demons yet)
   { key: "banisher", name: "Banisher", type: "percent", weight: 8 }, // fairly common extra damage to undead
-  { key: "slayer", name: "Slayer", type: "percent", weight: 3 } // slightly more rare extra damage to dragons (there are only a few dragons so far)
+  { key: "slayer", name: "Slayer", type: "percent", weight: 3 }, // slightly more rare extra damage to dragons (there are only a few dragons so far)
+  { key: "backstab", name: "Backstab", type: "percent", weight: 7 } // averagish extra damage on weapons only
 
 ];
 
@@ -182,6 +185,24 @@ brambleArmor: {
     might: 5,
     bonuses: [
       { key: "reflectDmg", value: 75 }
+    ]
+  }
+},
+
+assassinsBlade: {
+  id: "assassinsBlade",
+  name: "Assassin's Blade",
+  slot: "weapon",
+  tier: "artifact",
+  flavorName: "Assassin's Blade",
+  description: "High critical damage and backstab bonus.",
+  stats: {
+    hp: 100,
+    might: 10,
+    bonuses: [
+      { key: "critDmg", value: 50 },
+      { key: "backstab", value: 1 },
+      { key: "Dexterity", value: 10 }
     ]
   }
 }
@@ -413,7 +434,10 @@ const SKILL_DEFS = {
    },
     mpPotion: {key: "mpPotion", name: "MP potion", desc: "Automatically use MP potion on low mana", baseCost: 60,
     allowedClasses: ["sorcerer", "druid", "monk", "cleric"]
-   },   
+   },
+    disarmTrap: {key: "disarmTrap", name: "Disarm Trap", desc: "Lower chance of trap exploding when clicked", baseCost: 60,
+    allowedClasses: ["archer", "knight", "paladin"]   
+  }
 };
 
 const SPELL_DEFS = {
@@ -501,6 +525,8 @@ const LEVEL_UP_GAINS = {
 
 // Global state
 const state = {
+  completedAreas: [],
+  currentWave: 1,
   party: [], // array of Character
   gold: 0,
   enemyLevel: 1,
@@ -509,6 +535,7 @@ const state = {
   enemyAttackTimerId: null,
   autoAttackTimerId: null,
   cooldownUiTimerId: null,
+  currentAreaId: "newSorpigal",
   guaranteedCrits: 0, // Tracks remaining guaranteed critical hits from Bless
   spellCoolDowns: {},
   dualWieldCooldowns: {}, // New cooldown tracking for dualWield
@@ -520,7 +547,9 @@ const state = {
   fireballInterval: null,
   enemyAttackTimers: [],
   pendingLoot: [], // list of loot boxes waiting to be opened
-  foundArtifacts: [],
+  foundArtifacts: new Set(),
+  backstabCount: 0, // tracks backstab procs for weapons with attribute
+  backstabReady: 5, // attacks needed to guarantee next backstab
   partyBuffs: {
     weakSpot: false,
     haste: false,
@@ -600,6 +629,10 @@ const AREAS = {
   type: "dungeon", // New area type
   maxWaves: 5,
   baseLevel: 5,
+  trapHP: 8,
+  trapDmg: 10,
+  maxTraps: 1,
+  lootTier: 3,
   enemies: ["goblin", "hobgoblin", "bloodSucker"],
   boss: "goblinKing",
   unlocks: [], // Can add more dungeons later
@@ -656,6 +689,10 @@ const AREAS = {
     type: "dungeon", // New area type
     maxWaves: 10,
     baseLevel: 21,
+    trapHP: 10,
+    trapDmg: 10,
+    maxTraps: 2,
+    lootTier: 3,
     enemies: ["skeleton", "skeletonKnight", "hugeSpider", "acolyteOfBaa", "followerBaa"],
     boss: "priestOfBaa",
     unlocks: [], // Can add more dungeons later
@@ -733,6 +770,10 @@ const AREAS = {
     type: "dungeon", // New area type
     maxWaves: 12,
     baseLevel: 23,
+    trapHP: 15,
+    trapDmg: 20,
+    maxTraps: 3,
+    lootTier: 4,
     enemies: ["skeletonKnight", "spectre", "powerLich", "zombieWarrior"],
     boss: "ethric",
     unlocks: [], // Can add more dungeons later
@@ -760,6 +801,10 @@ const AREAS = {
     type: "dungeon", // New area type
     maxWaves: 2,
     baseLevel: 27,
+    trapHP: 15,
+    trapDmg: 20,
+    maxTraps: 1,
+    lootTier: 4,
     enemies: ["fireDrake"],
     boss: "longFang",
     unlocks: [], // Can add more dungeons later
@@ -807,6 +852,10 @@ const AREAS = {
     type: "dungeon", // New area type
     maxWaves: 9,
     baseLevel: 31,
+    trapHP: 20,
+    trapDmg: 25,
+    maxTraps: 3,
+    lootTier: 4,
     enemies: ["ogreRaider", "ogreChieftan"],
     boss: "captain",
     unlocks: [], // Can add more dungeons later
@@ -1601,7 +1650,8 @@ function createCharacter(id, classKey) {
     reflectAmount: 0,
     nextLevelXp: getNextLevelXp(1),
     skills: { weaponMastery: 0, spellpower: 0, bodyBuilding: 0, meditation: 0, focus: 0, dodging: 0,
-      dualWield: 0, pickPocket: 0, learning: 0, intimidate: 0, block: 0, hpPotion: 0, mpPotion: 0
+      dualWield: 0, pickPocket: 0, learning: 0, intimidate: 0, block: 0, hpPotion: 0, mpPotion: 0,
+      disarmTrap: 0
      },
     knownSpells: [...CLASS_STARTING_SPELLS[classKey]],
     quickstepActive: false,
@@ -1837,7 +1887,7 @@ function startGame() {
   beginEnemyAttacksWithVariants();
   beginAutoAttacks();
   selectCharacter(state.selectedIndex);
-  migrateToNewSystem();
+  //migrateToNewSystem();
   setupKeyboardControls();  
   //console.log(state.party);
 }
@@ -2022,7 +2072,12 @@ function selectEnemyVariant() {
 
 // Wave / Multiple enemies
 function setupWaveNew(waveNumber, areaId = null) {
-  const currentAreaId = areaId || state.currentAreaId || "newSorpigal";
+  let currentAreaId;
+  if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.currentAreaId){ 
+    currentAreaId = DEBUG_CONFIG.currentAreaId;
+  } else {
+    currentAreaId = areaId || state.currentAreaId || "newSorpigal";
+  }
   const waveData = setupWaveFromArea(currentAreaId, waveNumber);
   
   state.waveComplete = false;
@@ -2076,72 +2131,83 @@ function setupWaveFromAreaWithVariants(areaId, waveNumber) {
   const area = AREAS[areaId];
   if (!area) {
     console.error(`Area not found: ${areaId}`);
-    return setupWave(waveNumber); // Fallback to old system
+    return setupWave(waveNumber); // Fallback
   }
   
-  // Check if this is the final wave and has a boss
   const isFinalWave = waveNumber >= area.maxWaves;
   const hasBoss = area.boss && isFinalWave;
   
-  // Determine wave configuration
   let waveConfig = WAVE_CONFIGS.standard;
   if (hasBoss) {
     waveConfig = WAVE_CONFIGS.boss;
-  } else if (waveNumber % 5 === 0) { // Every 5th wave is a horde
+  } else if (waveNumber % 5 === 0) {
     waveConfig = WAVE_CONFIGS.horde;
   }
   
-  // Calculate enemy level
   const enemyLevel = waveConfig.levelProgression(waveNumber, area.baseLevel);
-  
-  // Generate enemies with variants
   const enemies = [];
   const enemyCount = waveConfig.enemyCount;
-  
+
   if (hasBoss) {
-    // Bosses are always Champions for extra challenge
     enemies.push(generateEnemyFromTemplateWithVariant(area.boss, enemyLevel + 3, "champion"));
   } else {
-    // Generate regular enemies with random variants
     for (let i = 0; i < enemyCount; i++) {
       let enemyTemplate;
-      
       if (waveConfig.enemySelection === "random") {
         enemyTemplate = area.enemies[Math.floor(Math.random() * area.enemies.length)];
       } else if (waveConfig.enemySelection === "sequential") {
         enemyTemplate = area.enemies[i % area.enemies.length];
       } else if (waveConfig.enemySelection === "weighted") {
-        // Weighted selection (favor earlier enemies for easier waves)
         const weights = area.enemies.map((_, idx) => Math.max(1, area.enemies.length - idx));
         const totalWeight = weights.reduce((sum, w) => sum + w, 0);
         let random = Math.random() * totalWeight;
         let selectedIdx = 0;
-        
         for (let j = 0; j < weights.length; j++) {
           random -= weights[j];
-          if (random <= 0) {
-            selectedIdx = j;
-            break;
-          }
+          if (random <= 0) { selectedIdx = j; break; }
         }
         enemyTemplate = area.enemies[selectedIdx];
       }
       
-      // Add some level variation for variety
-      const levelVariation = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
+      const levelVariation = Math.floor(Math.random() * 3) - 1;
       const finalLevel = Math.max(1, enemyLevel + levelVariation);
-      
-      // Generate enemy with random variant
       enemies.push(generateEnemyFromTemplateWithVariant(enemyTemplate, finalLevel));
     }
   }
-  
-  // Apply area reward multipliers to enemies (after variant multipliers)
+
+  // ✅ Insert traps (only if dungeon, not final wave)
+  if (area.type === "dungeon" && !hasBoss && area.trapHP) {
+    const trapCount = Math.floor(Math.random() * (area.maxTraps + 1)); // 0– max traps
+    console.log('trapCount: ', trapCount, ' ; ', 'maxTraps: ', area.maxTraps);
+    for (let t = 0; t < trapCount; t++) {
+      const trap = {
+        id: `trap_${waveNumber}_${t}`,
+        name: "Trap",
+        type: "trap",
+        hp: area.trapHP || 10,
+        maxHp: area.trapHP || 10,
+        maxTraps: area.maxTraps || 0,
+        trapDmg: area.trapDmg || 15,
+        lootTier: area.lootTier || 3,
+        rewardGold: 100,
+        rewardXp: 0,
+        isTrap: true
+      };
+
+      // Pick a random slot (not the top)
+      const insertIndex = Math.floor(Math.random() * (enemies.length)) + 1; 
+      enemies.splice(insertIndex, 0, trap);
+    }
+  }
+
+  // Apply multipliers to monsters only (not traps)
   enemies.forEach(enemy => {
-    enemy.rewardGold = Math.floor(enemy.rewardGold * area.rewards.goldMultiplier);
-    enemy.rewardXp = Math.floor(enemy.rewardXp * area.rewards.xpMultiplier);
+    if (!enemy.isTrap) {
+      enemy.rewardGold = Math.floor(enemy.rewardGold * area.rewards.goldMultiplier);
+      enemy.rewardXp = Math.floor(enemy.rewardXp * area.rewards.xpMultiplier);
+    }
   });
-  
+
   return {
     areaId,
     areaName: area.name,
@@ -2152,7 +2218,7 @@ function setupWaveFromAreaWithVariants(areaId, waveNumber) {
   };
 }
 
-// Enhanced enemy list rendering with variant styling
+
 // Enhanced enemy list rendering with variant styling
 function renderEnemyListWithVariants() {
   enemyListEl.innerHTML = "";
@@ -2174,35 +2240,54 @@ function renderEnemyListWithVariants() {
     return;
   }
   
-  // Re-index living enemies for proper targeting
-  livingEnemies.forEach((enemy, displayIndex) => {
-    // Find the original index in the full enemies array
-    const originalIndex = state.enemies.findIndex(e => e === enemy);
-    
+// Re-index living enemies for proper targeting
+livingEnemies.forEach((enemy, displayIndex) => {
+  const originalIndex = state.enemies.findIndex(e => e === enemy);
+
+  let row = document.createElement("div");
+
+  if (enemy.isTrap) {
+    // ✅ Special trap styling
+    const chance = getTrapExplosionChance().toFixed(1); // keep one decimal
+    row.className = "enemy-row trap-row";
+    row.setAttribute("data-index", String(originalIndex));
+    row.setAttribute("data-display-index", String(displayIndex));
+
+    row.innerHTML = `
+      <div class="row-head">
+        <div class="enemy-info">
+          <div class="enemy-name">⚠️ Trap</div>
+          <div class="enemy-description">Moves upward — destroy it before it explodes!
+          <span class="trap-chance">(~${chance}% per hit)</span></div>
+        </div>
+      </div>
+      <div class="bar hp trap">
+        <div class="fill" style="width:${(enemy.hp / enemy.maxHp) * 100}%"></div>
+        <div class="bar-text">${enemy.hp} / ${enemy.maxHp}</div>
+      </div>
+    `;
+  } else {
+    // ✅ Existing monster logic
     const enemyInfo = getEnemyDisplayInfoWithVariant(enemy);
-    
-    const row = document.createElement("div");
+
     row.className = `enemy-row ${enemyInfo.cssClass}`;
     row.setAttribute("data-index", String(originalIndex));
     row.setAttribute("data-display-index", String(displayIndex));
-    
-    // Create variant indicator badge
+
     let variantBadge = '';
     if (enemyInfo.isVariant) {
       const variant = ENEMY_VARIANTS[enemy.variant];
       let bonuses = [];
       if (variant.hpMultiplier > 1.0) bonuses.push('HP↑');
       if (variant.attackMultiplier > 1.0) bonuses.push('ATK↑');
-      
       variantBadge = `<span class="variant-badge ${enemyInfo.variantColor}">${variant.prefix} ${bonuses.join(' ')}</span>`;
     }
-    
-    // Enhanced enemy display with variant information
+
     const typeIndicator = `<span class="enemy-type ${enemyInfo.type}">${enemyInfo.type}</span>`;
     const tierIndicator = enemyInfo.tier !== 'boss' ? 
       `<span class="enemy-tier tier-${enemyInfo.tier}">T${enemyInfo.tier}</span>` : 
       '<span class="enemy-tier boss">BOSS</span>';
-    
+
     row.innerHTML = `
       <div class="row-head">
         <div class="enemy-info">
@@ -2220,9 +2305,11 @@ function renderEnemyListWithVariants() {
         <div class="bar-text">${enemy.hp} / ${enemy.maxHp}</div>
       </div>
     `;
-    
-    enemyListEl.appendChild(row);
-  });
+  }
+
+  enemyListEl.appendChild(row);
+});
+
   
   // Click handlers for attacks - NOW ON THE ENTIRE ENEMY ROW
   enemyListEl.querySelectorAll(".enemy-row").forEach((el) => {
@@ -2255,6 +2342,71 @@ function renderEnemyListWithVariants() {
       renderEnemyListWithVariants(); // Re-render to update focus indicators
     });
   });
+}
+
+// handle trap logic
+
+function checkTrapMovement() {
+  if (!state.enemies || state.enemies.length === 0) return;
+
+  // First living enemy
+  const topEnemy = state.enemies.find(e => e.hp > 0);
+  if (!topEnemy) return;
+
+  if (topEnemy.type === "trap") {
+    const trapIndex = state.enemies.indexOf(topEnemy);
+
+    // ✅ Find its row in the DOM
+    const trapRow = enemyListEl.querySelector(`.enemy-row[data-index="${trapIndex}"]`);
+    if (trapRow) {
+      trapRow.classList.add("exploding");
+
+      // Wait for the CSS animation (0.5s) before detonation
+      setTimeout(() => {
+        triggerTrapExplosion(trapIndex);
+      }, 500);
+    } else {
+      triggerTrapExplosion(trapIndex); // fallback
+    }
+  }
+}
+
+
+
+function triggerTrapExplosion(trapIndex) {
+  console.log('Boom!');
+  const trap = state.enemies[trapIndex];
+  if (!trap || !trap.isTrap || trap.hp <= 0) return;
+
+  const currentWaveId = state.currentWave;
+  const shards = trap.hp; // number of hits
+  const power = trap.trapDmg; // fixed from area template
+  console.log('shards: ', shards);
+
+  for (let i = 0; i < shards; i++) {
+    if (state.waveComplete) return;
+    if (state.currentWave !== currentWaveId) return; // abort if wave changed
+    
+    // Living party members
+    const livingParty = getLivingPartyMembers();
+    if (livingParty.length === 0) break;
+
+    const target = livingParty[Math.floor(Math.random() * livingParty.length)];
+    target.hp = Math.max(0, target.hp - power);
+
+    flashDamageOnCharacter(target.id); // you'll need a UI hook similar to onEnemyDamaged
+  }
+
+  // Destroy trap after detonation
+  trap.hp = 0;
+  onEnemyDamaged(trapIndex); // remove from UI
+    if (getLivingPartyMembers().length === 0) { // check for gameover
+    stopEnemyAttacks();
+    stopAutoAttacks();
+    checkGameOver();
+  }
+  checkTrapMovement(); // see if the next enemy is a trap
+  console.log(`💥 The trap explodes in a deadly spray of shrapnel!`);
 }
 
 
@@ -2412,6 +2564,9 @@ if (tierKey === "artifact") {
     if (DEBUG_CONFIG.forceAttributes.slayer) {
       bonuses.push({ key: "slayer", value: 50 });
     }
+    if (DEBUG_CONFIG.forceAttributes.backstab && slot === "weapon") {
+      bonuses.push({ key: "backstab", value: 1 });
+    } 
   }
 
   // Fill remaining bonus slots with random attributes
@@ -2443,7 +2598,9 @@ if (tierKey === "artifact") {
     
    // const filteredPool = bonusPool.filter(attr => !debugAttributes.includes(attr));
    const filteredPool = bonusPool.filter(attr => 
-    !debugAttributes.includes(attr.key) && (attr.weight ?? 1) > 0
+    !debugAttributes.includes(attr.key) && 
+    (attr.weight ?? 1) > 0 &&
+    (attr.key !== "backstab" || slot === "weapon")
   );
 
 
@@ -2581,6 +2738,12 @@ function applyEquipmentStats(character, item, skipClamp = false) {
     }
   }
 
+  // increase backstab if weapon has it
+  if (item.stats.bonuses.some(bonus => bonus.key === "backstab") && item.slot === "weapon") {
+    state.backstabCount += item.stats.bonuses.find(bonus => bonus.key === "backstab").value;
+    console.log('backstab Count: ', state.backstabCount);
+  }
+
   // Update reflect in character
   const reflectBonus = item.stats.bonuses.find(bonus => bonus.key === "reflectDmg");
   if (reflectBonus) {
@@ -2623,6 +2786,13 @@ function removeEquipmentStats(character, item) {
   // Update reflect in character
   if (item.stats.bonuses.some(bonus => bonus.key === "reflectDmg")) {
     character.reflectAmount -= item.stats.bonuses.reflectDmg.value;
+  }
+
+  // decrease backstab if weapon has it
+  if (item.stats.bonuses.some(bonus => bonus.key === "backstab") && item.slot === "weapon") {
+    state.backstabCount -= item.stats.bonuses.find(bonus => bonus.key === "backstab").value;
+    if (state.backstabCount < 0) state.backstabCount = 0;
+    console.log('backstab Count: ', state.backstabCount);
   }
 
   // Clean up artifact timers
@@ -3114,6 +3284,22 @@ function diminishingReturns(value, scale = 250) {
   return (value * scale) / (value + scale);
 }
 
+function getTrapExplosionChance() {
+  const livingMembers = getLivingPartyMembers();
+  let totalDisarm = 0;
+
+  livingMembers.forEach(c => {
+    // If you store skills like c.skills.disarmTrap
+    if (c.skills && c.skills.disarmTrap) {
+      totalDisarm += c.skills.disarmTrap;
+    }
+  });
+
+  let chance = 5 - (totalDisarm * 0.1);
+  return Math.max(0, chance); // never below 0%
+}
+
+
 function computeClickDamage(index) {
   const enemy = state.enemies[index];
   // Only living characters contribute to damage
@@ -3124,6 +3310,22 @@ function computeClickDamage(index) {
     stopEnemyAttacks();
     return 0;
   }
+
+  if (enemy.type === "trap") {
+    let damage = 1; // ✅ traps always take 1 damage
+
+    // ✅ Explosion check
+    const chance = getTrapExplosionChance();
+    if (Math.random() * 100 < chance) {
+      console.log(`Trap triggered early! (${chance.toFixed(2)}% chance)`);
+      triggerTrapExplosion(index);
+      return; // skip normal damage logic (trap already exploded)
+    } else {
+      return damage;
+    }
+  }
+
+
   let usedBloodmore = false;
   let bloodDamage = 0;
   for (const member of livingMembers) {
@@ -3244,6 +3446,18 @@ const totalMight = livingMembers.reduce((sum, c) => {
     }
   }
 
+  // Add backstab bonus if applicable
+  if (state.backstabCount > 0 && state.backstabReady == 0) {
+    const backstabBonus = 3.0 + (state.backstabCount * 0.5); // each backstab adds 50% damage, base 300%
+    totalDamage = Math.floor(totalDamage * (1 + backstabBonus));
+    console.log(`Backstab! +${(backstabBonus * 100).toFixed(1)}% damage, New Damage: ${totalDamage}`);
+    showFloatingMessage('Backstab!', 'backstab');
+    state.backstabReady = 5; // 5 clicks cooldown
+  } else if (state.backstabReady > 0) {
+    state.backstabReady--;
+    console.log(`Backstab cooldown: ${state.backstabReady} clicks remaining`);
+  }
+
   const total = totalDamage + dualWieldDamage;
   // Lifesteal: for Bloodmore we heal based on the wielder only
   if (usedBloodmore) {
@@ -3337,6 +3551,7 @@ function computeBloodmoreAOE(character) {
     if (state.waveComplete) return;
     const enemy = state.enemies[i];
     if (enemy.hp <= 0) continue;
+    if (enemy.type === "trap") continue;
 
     enemy.hp = Math.max(0, enemy.hp - power);
     totalDamage += power;
@@ -3729,7 +3944,7 @@ function onEnemyDamaged(index) {
   const livingMembers = getLivingPartyMembers();
 
   // Enemy survived -> attempt to apply stun
-  if (enemy.hp > 0 && enemy.isStunnable && !enemy.effects.includes('stun')) {
+  if (enemy.hp > 0 && enemy.isStunnable && !enemy.effects.includes('stun' && !enemy.type === "trap")) {
     applyStunChance(enemy);
   }
 
@@ -3764,7 +3979,8 @@ function onEnemyDamaged(index) {
       }
       
       const isArtifactDrop = (enemy.isBoss && Math.random() < 0.2) || 
-                            (enemy.variant === "champion" && enemy.level > 20 && Math.random() < 0.02);
+                            ((enemy.variant === "champion" || enemy.type === "trap") &&
+                              enemy.level > 15 && Math.random() < 0.02);
 
       // First roll for artifact
       let artifactLoot = null;
@@ -3796,6 +4012,7 @@ function onEnemyDamaged(index) {
 
     updatePartyBars();
     renderSidebar();
+    checkTrapMovement(); // see if a trap is at the top of the enemy list
 
     if (state.focusedEnemyIndex === index) {
       state.focusedEnemyIndex = null;
@@ -3977,7 +4194,7 @@ function beginEnemyAttacksWithVariants() {
 
 function scheduleEnemyAttack(enemy) {
   if (!enemy || enemy.hp <= 0) return;
-
+  if (enemy.type === "trap") return;
   console.log(enemy); // to show the enemy object for adding stun (and maybe other effects later)
   
   // If enemy is stunned, skip this attack and reschedule
@@ -5864,6 +6081,9 @@ function castSpell(character, spellKey) {
   }
   
   const spell = SPELL_DEFS[spellKey];
+  const spellDamageScale = 1 + (character.level / 10) * 0.2; // 20% more damage per 10 levels
+
+
   if (!spell) return;
 
    // check cooldown
@@ -5897,6 +6117,7 @@ function castSpell(character, spellKey) {
     switch (spellKey) {
       case "fireBolt":
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
+        power = Math.floor(power * spellDamageScale);
         soundEffects.play('fire');
         //state.spellCoolDowns[spellKey] = now + 2000;
         break;
@@ -5908,26 +6129,32 @@ function castSpell(character, spellKey) {
         // Random multiplier between 0.5 and 2.5
         const variance = (Math.random() * 2.5) + 0.5; // This gives a range from 0.5 to 3.0
         power = Math.floor(basePower * variance);
+        power = Math.floor(power * spellDamageScale);
         console.log(power);
         //state.spellCoolDowns[spellKey] = now + 3000;
         break;
       case "meteor":
         power = 25 + Math.floor(character.totalStats.Intellect * 1.5 * spMult);
+        power = Math.floor(power * spellDamageScale);
         targetAll = true;
         //state.spellCoolDowns[spellKey] = now + 10000;
         break;
       case "shrapnel":
         power = 25 + Math.floor(character.totalStats.Intellect * 1.5 * spMult);
+        power = Math.floor(power * spellDamageScale);
         break;
       case "volley":
         power = 15 + Math.floor(character.totalStats.Dexterity * 0.5);
+        power = Math.floor(power * spellDamageScale);
         break; 
       case "sparks":
         sparkPower = 5 + Math.floor(character.totalStats.Intellect * 0.5 * spMult);
+        sparkPower = Math.floor(sparkPower * spellDamageScale);
         soundEffects.play('lightning');
         break;       
       case "destroyUndead":
         power = 40 + Math.floor(character.totalStats.Intellect * 1.5 * spMult);
+        power = Math.floor(power * spellDamageScale);
         targetAll = true;
         //state.spellCoolDowns[spellKey] = now + 10000;
         break;
@@ -5943,6 +6170,7 @@ function castSpell(character, spellKey) {
         break;
       default:
         power = 10 + Math.floor(character.totalStats.Intellect * 0.8 * spMult);
+        power = Math.floor(power * spellDamageScale);
     }
 
   // Apply spell damage bonus to all spells (except special effect spells)
@@ -5996,7 +6224,7 @@ function castSpell(character, spellKey) {
       // Build list of living enemies
       const livingEnemies = state.enemies
         .map((enemy, idx) => ({ enemy, idx }))
-        .filter(e => e.enemy.hp > 0);
+        .filter(e => e.enemy.hp > 0 && e.enemy.type !== "trap");
 
       if (livingEnemies.length === 0) break; // No valid targets left
 
@@ -6020,7 +6248,7 @@ function castSpell(character, spellKey) {
       // Build list of living enemies
       const livingEnemies = state.enemies
         .map((enemy, idx) => ({ enemy, idx }))
-        .filter(e => e.enemy.hp > 0);
+        .filter(e => e.enemy.hp > 0 && e.enemy.type !== "trap");
 
       if (livingEnemies.length === 0) break; // No valid targets left
 
@@ -6036,6 +6264,9 @@ function castSpell(character, spellKey) {
     }
   } else if (targetAll) {
       state.enemies.forEach((enemy, idx) => {
+        if (enemy.type === "trap") { // skip traps
+          return;
+        }
         if (enemy.hp > 0) {
           if (specialEffect === "percentDamage") {
             
@@ -6093,10 +6324,12 @@ function castSpell(character, spellKey) {
     switch (spellKey) {
       case "heal":
         amount = 10 + Math.floor(character.totalStats.Personality * 0.6 * spMult);
+        amount = Math.floor(amount * (1 + (character.level / 20))); // 5% more heal per 10 levels
         //state.spellCoolDowns[spellKey] = now + 1000;
         break;
       case "cure":
         amount = 20 + Math.floor(character.totalStats.Personality * 1.0 * spMult);
+        amount = Math.floor(amount * (1 + (character.level / 20))); // 5% more heal per 10 levels
         targetAll = true;
         //state.spellCoolDowns[spellKey] = now + 4000;
         break;
@@ -6121,6 +6354,7 @@ function castSpell(character, spellKey) {
         //state.spellCoolDowns[spellKey] = now + 2000;
       default:
         amount = 10 + Math.floor(character.totalStats.Personality * 0.6 * spMult);
+        amount = Math.floor(amount * (1 + (character.level / 20))); // 5% more heal per 10 levels
     }
     
     if (targetAll) {
@@ -6556,6 +6790,7 @@ function restartFromAreaBeginning() {
   state.party.forEach(character => {
     character.hp = character.maxHp;
     character.mp = character.maxMp;
+    character.statusEffect = [];
   });
   
   // Reset to wave 1 of current area
