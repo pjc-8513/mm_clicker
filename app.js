@@ -3,9 +3,9 @@ const DEBUG_CONFIG = {
   enabled: false,         // Master switch to enable/disable debug features
   
   // Character/Level debug
-  forceStartingLevel: 12,  // Set to 0 or false to disable
+  forceStartingLevel: 25,  // Set to 0 or false to disable
   startingGold: 100000,
-  currentAreaId: "goblinwatch", // or set to false
+  currentAreaId: false, // or set to false
   
   // Loot debug
   forceDrops: true,        // Every enemy drops loot
@@ -63,7 +63,7 @@ const LOOT_ATTRIBUTES = [
   { key: "excommunicator", name: "Excommunicator", type: "percent", weight: 3 }, // slightly more rare extra damage to demons (there aren't any demons yet)
   { key: "banisher", name: "Banisher", type: "percent", weight: 8 }, // fairly common extra damage to undead
   { key: "slayer", name: "Slayer", type: "percent", weight: 3 }, // slightly more rare extra damage to dragons (there are only a few dragons so far)
-  { key: "backstab", name: "Backstab", type: "percent", weight: 7 } // averagish extra damage on weapons only
+  { key: "backstab", name: "Backstab", type: "number", weight: 7 } // Extra damage on weapons only
 
 ];
 
@@ -2189,6 +2189,7 @@ function setupWaveFromAreaWithVariants(areaId, waveNumber) {
         maxTraps: area.maxTraps || 0,
         trapDmg: area.trapDmg || 15,
         lootTier: area.lootTier || 3,
+        level: area.baseLevel || 13,
         rewardGold: 100,
         rewardXp: 0,
         isTrap: true
@@ -2670,6 +2671,10 @@ if (tierKey === "artifact") {
           value = randInt(10.0, 15.0);
           break;
 
+        case "backstab":
+          value = 1;
+          break;
+
         case "hunter": // Extra dmg vs beasts
         case "executioner": // Extra dmg vs humanoids
         case "excommunicator": // Extra dmg vs demons
@@ -2724,7 +2729,8 @@ function applyEquipmentStats(character, item, skipClamp = false) {
     }
     character.totalStats[b.key] = (character.totalStats[b.key] || 0) + b.value;
   }
-  console.log(item);
+  //console.log(item);
+  
   // Apply or increase ofFireball
   if (item.stats.bonuses.some(bonus => bonus.key === "ofFireball") || item.id === "torchWand") {
     applyOfFireball(item);
@@ -2882,14 +2888,18 @@ function generateLootFromTier(lootTier) {
     case 4: // rare - legendary
       tier = roll > 0.7 ? "legendary" : "rare";
       break;
+    case 5: // artifact
+      tier = 'artifact';
+      break;
   }
 
   const slot = randomChoice(EQUIP_SLOTS);
+  console.log('[Drop Check] slot: ', slot, ' ; tier: ', tier);
   return generateLoot(tier, slot);
 }
 
 
-function showLootChestMenu(loot) {
+function showLootChestMenu(loot, returnTo) {
   const menu = document.createElement("div");
   menu.className = "modal-overlay";
 
@@ -2940,20 +2950,26 @@ function showLootChestMenu(loot) {
   document.body.appendChild(menu);
 
   menu.querySelector("[data-action='equip']").addEventListener("click", () => {
-    showEquipMenu(loot);
+    showEquipMenu(loot, returnTo);
     menu.remove();
   });
   menu.querySelector("[data-action='sell']").addEventListener("click", () => {
     state.gold += sellValue;
     menu.remove();
     renderSidebar();
-    showWaveCompleteMenu();
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
   });
 }
 
 
 
-function showEquipMenu(loot) {
+function showEquipMenu(loot, returnTo) {
   const menu = document.createElement("div");
 
   let sellValue = loot.stats.hp + loot.stats.might;
@@ -3049,7 +3065,13 @@ function showEquipMenu(loot) {
       renderSidebar();
 
       menu.remove();
-      showWaveCompleteMenu();
+      if (returnTo === "wave") {
+        showWaveCompleteMenu();
+      } else if (returnTo === "dungeon"){
+        showDungeonCompleteMenu();
+      } else if (returnTo === "area"){
+        showAreaCompleteMenu()
+      }
     });
   });
 
@@ -3057,7 +3079,13 @@ function showEquipMenu(loot) {
     state.gold += sellValue;
     menu.remove();
     renderSidebar();
-    showWaveCompleteMenu();
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
   });
 }
 
@@ -3978,22 +4006,28 @@ function onEnemyDamaged(index) {
         }
       }
       
-      const isArtifactDrop = (enemy.isBoss && Math.random() < 0.2) || 
+      const roll = Math.random();
+      const isArtifactDrop = (enemy.isBoss && roll < 0.2) ||
                             ((enemy.variant === "champion" || enemy.type === "trap") &&
-                              enemy.level > 15 && Math.random() < 0.02);
+                              enemy.level >= 5 && roll < 0.1);
+
+      console.log(`[Drop Check] Enemy: ${enemy.type}, Level: ${enemy.level}, Boss: ${enemy.isBoss}, Variant: ${enemy.variant}, Roll: ${roll.toFixed(4)}, Artifact? ${isArtifactDrop}`);
+
 
       // First roll for artifact
       let artifactLoot = null;
       if (isArtifactDrop) {
-        artifactLoot = generateLootFromTier("artifact");
+        artifactLoot = generateLootFromTier(5);
+        console.log(`[Drop Check] loot: ${artifactLoot}`);
         if (artifactLoot && !state.foundArtifacts.has(artifactLoot.id)) {
+          console.log('[Drop Check] Artifact pending: ', artifactLoot.name);
           state.foundArtifacts.add(artifactLoot.id);
           state.pendingLoot.push(artifactLoot);
         }
       }
 
       // Then roll for normal loot
-      if (Math.random() < dropChance) {
+      if (artifactLoot === null && Math.random() < dropChance) {
         const loot = generateLootFromTier(enemy.lootTier);
         if (loot) state.pendingLoot.push(loot);
       }
@@ -4261,7 +4295,7 @@ function performEnemyAttack(instanceId) {
       console.log(`${member.name} reflected ${reflectDmgAmount} damage`);
     }
 
-
+      if (member.hp < 1) member.statusEffect = []; // remove status effect from dead character
       applyEnemyStatusEffects(enemy, member);
       flashDamageOnCharacter(member.id);
       if (isCrit) showPortraitFloatingMessage(member.id, `${dmg} CRIT!`, "crit");
@@ -4286,7 +4320,7 @@ function performEnemyAttack(instanceId) {
       
       console.log('Reflected damage amount: ', reflectDmgAmount)
     }
-    
+    if (target.hp < 1) target.statusEffect = []; // Remove status effect from dead character
     applyEnemyStatusEffects(enemy, target);
     flashDamageOnCharacter(target.id);
     if (isCrit) showPortraitFloatingMessage(target.id, `${dmg} CRIT!`, "crit");
@@ -4641,6 +4675,7 @@ function showWaveCompleteMenu() {
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
   const restCost = Math.ceil(50 + partyLevel * 5); // example scaling formula
   const lootCount = state.pendingLoot.length;
+  const returnTo = "wave";
   
   const menu = document.createElement("div");
   menu.id = "wave-complete-menu";
@@ -4679,7 +4714,7 @@ function showWaveCompleteMenu() {
         state.gold -= reviveCost; 
       }
       closeWaveCompleteMenu();
-      handleWaveMenuActionNew(action);
+      handleWaveMenuActionNew(action, returnTo);
     });
   });
 }
@@ -4729,7 +4764,9 @@ function showDungeonCompleteMenu() {
   const canAffordRevive = state.gold >= reviveCost;
   const allMembersAlive = deadMembers.length === 0;
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
+  const lootCount = state.pendingLoot.length;
   const restCost = Math.ceil(50 + partyLevel * 5); // example scaling formula
+  const returnTo = "dungeon"
   //const loot = getLootDrop();
   
   // Apply dungeon reward
@@ -4766,7 +4803,11 @@ function showDungeonCompleteMenu() {
         <button class="btn large" data-action="rest" ${state.gold < restCost ? "disabled" : ""}>
           Inn - Rest and refill potions - ${restCost} Gold
         </button>
+        ${lootCount > 0 
+          ? `<button class="btn large" data-action="open-loot">Open Loot Chest (${lootCount})</button>`
+          : ""}
         <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
+        <button class="btn large" data-action="party-stats">View Party Stats</button>
       </div>
     </div>
   `;
@@ -4780,13 +4821,13 @@ function showDungeonCompleteMenu() {
       closeDungeonCompleteMenu();
       
       if (action === "choose-area") {
-        showAreaSelectionMenu();
+        showAreaSelectionMenu(returnTo);
       } else {
         if (action === "revive") {
           state.gold -= reviveCost;
         }
       
-        handleWaveMenuActionNew(action);
+        handleWaveMenuActionNew(action, returnTo);
       }
     });
   });
@@ -4856,6 +4897,9 @@ function showAreaCompleteMenu() {
   const allMembersAlive = deadMembers.length === 0;
   const partyLevel = state.party.reduce((sum, c) => sum + c.level, 0) / state.party.length;
   const restCost = Math.ceil(50 + partyLevel * 5); // example scaling formula
+  const lootCount = state.pendingLoot.length;
+  const returnTo = "area";
+
   
   let unlockedText = "";
   if (newlyUnlocked.length > 0) {
@@ -4872,10 +4916,14 @@ function showAreaCompleteMenu() {
         <button class="btn large" data-action="repeat-area">Repeat This Area</button>
         <button class="btn large" data-action="upgrade-skills">Upgrade Skills</button>
         <button class="btn large" data-action="buy-spells">Buy Spells</button>
+        ${lootCount > 0 
+          ? `<button class="btn large" data-action="open-loot">Open Loot Chest (${lootCount})</button>`
+        : ""}
         <button class="btn large" data-action="rest" ${state.gold < restCost ? "disabled" : ""}>
           Inn - Rest and refill potions - ${restCost} Gold
         </button>
         <button class="btn large" data-action="revive" ${!canAffordRevive || allMembersAlive ? "disabled" : ""}>Revive All (${reviveCost} Gold)</button>
+        <button class="btn large" data-action="party-stats">View Party Stats</button>
       </div>
     </div>
   `;
@@ -4893,9 +4941,9 @@ function showAreaCompleteMenu() {
         beginEnemyAttacksWithVariants();
         beginAutoAttacks();
       } else if (action === "change-area") {
-        showAreaSelectionMenu();
+        showAreaSelectionMenu(returnTo);
       } else {
-        handleWaveMenuActionNew(action);
+        handleWaveMenuActionNew(action, returnTo);
       }
     });
   });
@@ -4914,7 +4962,7 @@ function closeWaveCompleteMenu() {
 }
 
 
-function showAreaSelectionMenu() {
+function showAreaSelectionMenu(returnTo) {
   const availableAreas = getAvailableAreas();
   
   const menu = document.createElement("div");
@@ -4997,7 +5045,13 @@ menu.querySelectorAll("[data-action='select-area']:not([disabled])").forEach(btn
 // Cancel button
 menu.querySelector("[data-action='cancel']").addEventListener("click", () => {
   closeAreaSelectionMenu();
-  showWaveCompleteMenu();
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
 });
 
 }
@@ -5008,7 +5062,7 @@ function closeAreaSelectionMenu() {
   if (menu) menu.remove();
 }
 
-function handleWaveMenuActionNew(action) {
+function handleWaveMenuActionNew(action, returnTo) {
   const currentArea = AREAS[state.currentAreaId];
   
   switch (action) {
@@ -5038,11 +5092,11 @@ function handleWaveMenuActionNew(action) {
       break;
       
     case "upgrade-skills":
-      showSkillsMenu();
+      showSkillsMenu(returnTo);
       break;
       
     case "buy-spells":
-      showSpellShopMenu();
+      showSpellShopMenu(returnTo);
       break;
       
     case "rest":
@@ -5067,32 +5121,50 @@ function handleWaveMenuActionNew(action) {
         updatePartyBars();
         renderSidebar();
       }
-      showWaveCompleteMenu();
+      if (returnTo === "wave") {
+        showWaveCompleteMenu();
+      } else if (returnTo === "dungeon"){
+        showDungeonCompleteMenu();
+      } else if (returnTo === "area"){
+        showAreaCompleteMenu()
+      }
       break;
       
     case "change-area":
-      showAreaSelectionMenu();
+      showAreaSelectionMenu(returnTo);
       break;
 
     case "revive":
       reviveAll();
       updatePartyBars();
       renderSidebar();
+    if (returnTo === "wave") {
       showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
       break;
 
     case "open-loot":
       if (state.pendingLoot.length > 0) {
         const loot = state.pendingLoot.shift(); // remove first item
         //console.log(loot); // debugging line
-        showLootChestMenu(loot);
+        showLootChestMenu(loot, returnTo);
       } else {
+      if (returnTo === "wave") {
         showWaveCompleteMenu();
+      } else if (returnTo === "dungeon"){
+        showDungeonCompleteMenu();
+      } else if (returnTo === "area"){
+        showAreaCompleteMenu()
+      }
       }
       break;
 
     case "party-stats":
-      showPartyStatsMenu();
+      showPartyStatsMenu(returnTo);
       break;
 
   
@@ -5100,7 +5172,7 @@ function handleWaveMenuActionNew(action) {
 }
 
 // Skills upgrade menu
-function showSkillsMenu() {
+function showSkillsMenu(returnTo) {
   const menu = document.createElement("div");
   menu.id = "skills-menu";
   menu.className = "modal-overlay";
@@ -5170,7 +5242,15 @@ function showSkillsMenu() {
 
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     closeSkillsMenu();
-    showWaveCompleteMenu();
+
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
+
   });
 }
 
@@ -5268,7 +5348,7 @@ function upgradeCharacterSkill(characterIndex, skillKey) {
 
 // Spell shop menu
 // Spell shop menu
-function showSpellShopMenu() {
+function showSpellShopMenu(returnTo) {
   const menu = document.createElement("div");
   menu.id = "spell-shop-menu";
   menu.className = "modal-overlay";
@@ -5330,7 +5410,13 @@ function showSpellShopMenu() {
   
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     closeSpellShopMenu();
-    showWaveCompleteMenu();
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
   });
 }
 
@@ -5424,7 +5510,7 @@ function buySpellForCharacter(characterIndex, spellKey) {
   }
 }
 
-function showPartyStatsMenu() {
+function showPartyStatsMenu(returnTo) {
   let currentIndex = 0; // Track which character is being displayed
 
   const menu = document.createElement("div");
@@ -5582,17 +5668,23 @@ for (const slot in char.equipment) {
 
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     menu.remove();
-    showWaveCompleteMenu(); // back out
+    if (returnTo === "wave") {
+      showWaveCompleteMenu();
+    } else if (returnTo === "dungeon"){
+      showDungeonCompleteMenu();
+    } else if (returnTo === "area"){
+      showAreaCompleteMenu()
+    }
   });
 
   menu.querySelector("[data-action='inventory']").addEventListener("click", () => {
   
     menu.remove();
-    showInventoryMenu(); // go to inventory
+    showInventoryMenu(returnTo); // go to inventory
   });
 }
 
-function showInventoryMenu() {
+function showInventoryMenu(returnTo) {
   let currentIndex = 0; // track current character
 
   const menu = document.createElement("div");
@@ -5710,7 +5802,7 @@ function showInventoryMenu() {
 
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
     menu.remove();
-    showPartyStatsMenu();
+    showPartyStatsMenu(returnTo);
   });
 }
 
@@ -6585,6 +6677,7 @@ function reviveOne() {
     }
 
     deadMember.hp = Math.floor(maxHp / 2);
+    deadMember.statusEffect.push({ key: "weakness" });
     flashReviveOnCharacter(deadMember.id);
     soundEffects.play("revive");
     return 1;
