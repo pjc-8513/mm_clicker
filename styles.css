@@ -222,6 +222,25 @@ body {
   }
 }
 
+.portrait.regenMana-flash {
+  animation: regen-mana-blue 0.5s ease-out;
+}
+
+@keyframes regen-mana-blue {
+  0% {
+    box-shadow: 0 0 0 rgba(110, 132, 192, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba(47, 0, 255, 0.75); /* A blue shadow */
+    transform: scale(1.05); /* Slight scale to emphasize the heal */
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(0, 255, 0, 0.0);
+    transform: scale(1);
+  }
+}
+
 
 .portrait.regen-glow {
   animation: regen-pulse-green 2s infinite ease-in-out;
@@ -952,10 +971,12 @@ if (!document.getElementById('dungeon-styles')) {
   padding: 1em;
   border-radius: 8px;
 }
+
 .artifact-description {
+  display: block;
+  margin-top: 6px;
   font-style: italic;
-  margin-bottom: 0.5em;
-  color: #ffb347;
+  color: #f7c97b; /* choose color that fits your theme */
 }
 
 /* Artifact loot (fiery crimson) */
@@ -1036,19 +1057,42 @@ if (!document.getElementById('dungeon-styles')) {
   box-shadow: 0 0 8px rgba(230,57,70,0.8);
 }
 
-.inventory-row {
+/* Layout for inventory rows */
+.inventory-list .inventory-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 
-.inventory-row .slot {
-  min-width: 70px;
+
+.inventory-row .slot-label {
+  flex: 0 0 110px; /* fixed column for slot name */
+  color: rgba(255,255,255,0.7);
 }
 
 .inventory-row .item {
-  flex: 1;
+  flex: 1 1 auto;   /* main content area */
+  min-width: 0;     /* allows truncation/word-wrap inside flexbox */
+  overflow-wrap: break-word;
+}
+
+.inventory-row .slot-actions {
+  flex: 0 0 110px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.loot-item {
+  display: block;
+  position: static !important;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 8px;
+  /* keep appearance neutral; your existing .loot-artifact glow will still apply unless it uses absolute positioning */
 }
 
 .loot-magic {
