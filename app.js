@@ -1,6 +1,6 @@
 // Global debug configuration
 const DEBUG_CONFIG = {
-  enabled: false,         // Master switch to enable/disable debug features
+  enabled: true,         // Master switch to enable/disable debug features
   
   // Character/Level debug
   forceStartingLevel: 25,  // Set to 0 or false to disable
@@ -9,8 +9,8 @@ const DEBUG_CONFIG = {
   
   // Loot debug
   forceDrops: true,        // Every enemy drops loot
-  defaultDropTier: false, // Force all drops to this tier (or false for normal)
-  forceArtifactId: null, // e.g. "robinsBow" or "bloodmore"
+  defaultDropTier: "artifact", // Force all drops to this tier (or false for normal)
+  forceArtifactId: "crownOfTheMagi", // e.g. "robinsBow" or "bloodmore"
   
   // Attribute forcing (will guarantee these on every item)
   forceAttributes: {
@@ -25,11 +25,12 @@ const DEBUG_CONFIG = {
     manaRegen: false,
     hpRegen: false,
     hunter: false,
-    executioner: true,
+    executioner: false,
     excommunicator: false,
     banisher: false,
     slayer: false,
-    backstab: false
+    backstab: false,
+    manaRegen: false
 
   },
   
@@ -56,7 +57,7 @@ const LOOT_ATTRIBUTES = [
   { key: "evasion", name: "Evasion", type: "percent", weight: 6 }, // averagish
   { key: "ofFireball", name: "Of Fireball", type: "cast", weight: 2 }, // not too common
   { key: "reflectDmg", name: "Reflect Damage", type: "percent", weight: 4 }, // slightly more rare
-  { key: "manaRegen", name: "Mana Regen", type: "percent", weight: 0 }, // 0% because it doesn't exist yet; future attribute
+  { key: "manaRegen", name: "Mana Regen", type: "percent", weight: 7 }, 
   { key: "hpRegen", name: "Health Regen", type: "percent", weight: 0 }, // 0% because it doesn't exist yet; future attribute
   { key: "hunter", name: "Hunter's Mark", type: "percent", weight: 8 }, // fairly common extra damage to beasts
   { key: "executioner", name: "Executioner", type: "percent", weight: 8 }, // fairly common extra damage to humans
@@ -66,6 +67,91 @@ const LOOT_ATTRIBUTES = [
   { key: "backstab", name: "Backstab", type: "number", weight: 7 } // Extra damage on weapons only
 
 ];
+
+// Registry of bonus handlers
+const BONUS_HANDLERS = {
+
+  reflectDmg: {
+    apply: (char, item, bonus) => {
+      char.reflectAmount = recalcBonusForChar(char, "reflectAmount");
+    },
+    remove: (char, item, bonus) => {
+      char.reflectAmount = recalcBonusForChar(char, "reflectAmount");
+    }
+  },
+
+  backstab: {
+    apply: (char, item, bonus) => {
+      if (item.slot === "weapon") {
+        state.backstabCount = recalcBonusAcrossParty("backstab");
+      }
+    },
+    remove: (char, item, bonus) => {
+      if (item.slot === "weapon") {
+        state.backstabCount = recalcBonusAcrossParty("backstab");
+        if (state.backstabCount < 0) state.backstabCount = 0;
+      }
+    }
+  },
+
+ofFireball: {
+  apply: () => {
+    state.ofFireballCount = recalcBonusAcrossParty("ofFireball");
+
+    if (state.ofFireballCount > 0 && !state.ofFireballSet) {
+      state.ofFireballSet = true;
+      state.fireballInterval = setInterval(castFireball, 2500);
+    }
+  },
+  remove: () => {
+    state.ofFireballCount = recalcBonusAcrossParty("ofFireball");
+
+    if (state.ofFireballCount <= 0 && state.fireballInterval) {
+      clearInterval(state.fireballInterval);
+      state.fireballInterval = null;
+      state.ofFireballSet = false;
+    }
+  }
+},
+
+manaRegen: {
+  apply: (char, item, bonus) => {
+    char.manaRegenRate = recalcBonusForChar(char, "manaRegen");
+
+    if (state.manaRegenInterval === null) {
+      state.manaRegenInterval = setInterval(manaRegen, 1000);
+    }
+  },
+  remove: (char, item, bonus) => {
+    char.manaRegenRate = recalcBonusForChar(char, "manaRegen");
+
+    // Kill interval if *no party member* has regen left
+    const stillHasRegen = state.party.some(p => p.manaRegenRate > 0);
+    if (!stillHasRegen && state.manaRegenInterval !== null) {
+      clearInterval(state.manaRegenInterval);
+      state.manaRegenInterval = null;
+    }
+  }
+}
+
+
+  // add more as you invent them
+};
+
+function recalcBonusForChar(char, key, transformFn = (eq, bonus) => bonus.value) {
+  return Object.values(char.equipment || {})
+    .filter(Boolean)
+    .flatMap(eq => eq.stats?.bonuses?.map(b => ({ eq, bonus: b })) || [])
+    .filter(({ bonus }) => bonus.key === key)
+    .reduce((sum, { eq, bonus }) => sum + transformFn(eq, bonus), 0);
+}
+
+function recalcBonusAcrossParty(key) {
+  return state.party.reduce((sum, char) => {
+    return sum + recalcBonusForChar(char, key);
+  }, 0);
+}
+
 
 const WEAPON_FLAVORS = [
   { min: 0, max: 8, name: "Longsword" },
@@ -168,7 +254,8 @@ const ARTIFACTS = {
     might: 5,
     bonuses: [
       { key: "Intellect", value: 15 },
-      { key: "Personality", value: 5 }
+      { key: "Personality", value: 5 },
+      { key: "ofFireball", value: 4 }
     ]
   }
 },
@@ -203,6 +290,24 @@ assassinsBlade: {
       { key: "critDmg", value: 50 },
       { key: "backstab", value: 1 },
       { key: "Dexterity", value: 10 }
+    ]
+  }
+},
+
+crownOfTheMagi: {
+  id: "crownOfTheMagi",
+  name: "Crown of the Magi",
+  slot: "helm",
+  tier: "artifact",
+  flavorName: "Crown of the Magi",
+  description: "High mana bonus and mana regeneration.",
+  stats: {
+    hp: 50,
+    mp: 50,
+    might: 5,
+    bonuses: [
+      { key: "Intellect", value: 10 },
+      { key: "manaRegen", value: 5 }
     ]
   }
 }
@@ -545,6 +650,7 @@ const state = {
   availableMPPotions: 5,
   ofFireballCount: 0,
   fireballInterval: null,
+  manaRegenInterval: null,
   enemyAttackTimers: [],
   pendingLoot: [], // list of loot boxes waiting to be opened
   foundArtifacts: new Set(),
@@ -1648,6 +1754,7 @@ function createCharacter(id, classKey) {
     level: 1,
     xp: 0,
     reflectAmount: 0,
+    manaRegenRate: 0,
     nextLevelXp: getNextLevelXp(1),
     skills: { weaponMastery: 0, spellpower: 0, bodyBuilding: 0, meditation: 0, focus: 0, dodging: 0,
       dualWield: 0, pickPocket: 0, learning: 0, intimidate: 0, block: 0, hpPotion: 0, mpPotion: 0,
@@ -2449,7 +2556,15 @@ function randFloat(min, max) {
 function ensureCharRuntimeFields(char) {
   if (!char.runtime) char.runtime = {};
   if (!char.runtime.equipmentTimers) char.runtime.equipmentTimers = {};
+  // always keep this as a number
+  if (!char.manaRegenRate) {
+    char.manaRegenRate = Number(0);
+  } else {
+    // coerce any stray string/object to a number safely
+    char.manaRegenRate = Number(char.manaRegenRate) || 0;
+  }
 }
+
 
 function weightedRandomChoice(pool) {
   const totalWeight = pool.reduce((sum, item) => sum + (item.weight || 1), 0);
@@ -2567,6 +2682,9 @@ if (tierKey === "artifact") {
     }
     if (DEBUG_CONFIG.forceAttributes.backstab && slot === "weapon") {
       bonuses.push({ key: "backstab", value: 1 });
+    }
+    if (DEBUG_CONFIG.forceAttributes.manaRegen) {
+      bonuses.push({ key: "manaRegen", value: 1 });
     } 
   }
 
@@ -2675,6 +2793,10 @@ if (tierKey === "artifact") {
           value = 1;
           break;
 
+        case "manaRegen":
+          value = 3;
+          break;
+
         case "hunter": // Extra dmg vs beasts
         case "executioner": // Extra dmg vs humanoids
         case "excommunicator": // Extra dmg vs demons
@@ -2719,89 +2841,47 @@ if (tierKey === "artifact") {
 }
 
 function applyEquipmentStats(character, item, skipClamp = false) {
-  character.maxHp += item.stats.hp;
-  character.totalStats.Might += item.stats.might;
-  
-  for (const b of item.stats.bonuses) {
-    if (b.key === 'mp') {
-      character.maxMp = (character.maxMp || 0) + b.value;
-      if (!skipClamp) character.mp = character.maxMp;
+  character.maxHp += item.stats.hp || 0;
+  character.maxMp += item.stats.mp || 0;
+  character.totalStats.Might += item.stats.might || 0;
+
+  for (const bonus of item.stats.bonuses) {
+    // apply totalStats baseline
+    if (bonus.key !== "mp") {
+      character.totalStats[bonus.key] = (character.totalStats[bonus.key] || 0) + bonus.value;
     }
-    character.totalStats[b.key] = (character.totalStats[b.key] || 0) + b.value;
-  }
-  //console.log(item);
-  
-  // Apply or increase ofFireball
-  if (item.stats.bonuses.some(bonus => bonus.key === "ofFireball") || item.id === "torchWand") {
-    applyOfFireball(item);
-    console.log('ofFireballCount: ', state.ofFireballCount);
-    
-    if (state.ofFireballCount > 0 && !state.ofFireballSet){
-      state.ofFireballSet = true;
-      state.fireballInterval = setInterval(() => {
-        castFireball();
-      }, 2500); // 2500 milliseconds = 2.5 seconds
-    }
+
+    // special handler?
+    const handler = BONUS_HANDLERS[bonus.key];
+    if (handler?.apply) handler.apply(character, item, bonus, skipClamp);
   }
 
-  // increase backstab if weapon has it
-  if (item.stats.bonuses.some(bonus => bonus.key === "backstab") && item.slot === "weapon") {
-    state.backstabCount += item.stats.bonuses.find(bonus => bonus.key === "backstab").value;
-    console.log('backstab Count: ', state.backstabCount);
-  }
-
-  // Update reflect in character
-  const reflectBonus = item.stats.bonuses.find(bonus => bonus.key === "reflectDmg");
-  if (reflectBonus) {
-    character.reflectAmount += reflectBonus.value;
-  }
-
-  // Artifact special effects
+  // Special per‐artifact hooks
   if (item.tier === "artifact") {
     ensureCharRuntimeFields(character);
 
     if (item.id === "robinsBow") {
-      // Setup volley timer
       const interval = item.special.castsVolley.interval;
       character.runtime.equipmentTimers.robinsBow = setInterval(() => {
-        if (!state.waveComplete) {
-          castVolley(character);
-        }
+        if (!state.waveComplete) castVolley(character);
       }, interval);
     }
   }
 }
 
 function removeEquipmentStats(character, item) {
-  character.maxHp -= item.stats.hp;
-  character.totalStats.Might -= item.stats.Might;
+  character.maxHp -= item.stats.hp || 0;
+  character.totalStats.Might -= item.stats.might || 0;
 
-  for (const b of item.stats.bonuses) {
-    if (b.key === 'mp') {
-      character.maxMp -= b.value;
-      character.mp = Math.min(character.mp, character.maxMp);
+  for (const bonus of item.stats.bonuses) {
+    if (bonus.key !== "mp") {
+      character.totalStats[bonus.key] -= bonus.value;
     }
-    character.totalStats[b.key] -= b.value;
+
+    const handler = BONUS_HANDLERS[bonus.key];
+    if (handler?.remove) handler.remove(character, item, bonus);
   }
 
-  // decrease ofFireball
-  if (item.stats.bonuses.includes("ofFireball") || item.id === "torchWand") {
-    decreaseOfFireball(item);
-  }
-
-  // Update reflect in character
-  if (item.stats.bonuses.some(bonus => bonus.key === "reflectDmg")) {
-    character.reflectAmount -= item.stats.bonuses.reflectDmg.value;
-  }
-
-  // decrease backstab if weapon has it
-  if (item.stats.bonuses.some(bonus => bonus.key === "backstab") && item.slot === "weapon") {
-    state.backstabCount -= item.stats.bonuses.find(bonus => bonus.key === "backstab").value;
-    if (state.backstabCount < 0) state.backstabCount = 0;
-    console.log('backstab Count: ', state.backstabCount);
-  }
-
-  // Clean up artifact timers
   if (item.tier === "artifact") {
     ensureCharRuntimeFields(character);
 
@@ -2811,6 +2891,7 @@ function removeEquipmentStats(character, item) {
     }
   }
 }
+
 
 
 function recomputeCharacterStats(character) {
@@ -3245,6 +3326,24 @@ function castFireball() {
   // Play fire sound
   soundEffects.play('fire');
 }
+
+function manaRegen() {
+  const livingPartyMembers = getLivingPartyMembers();
+  if (state.waveComplete || livingPartyMembers.length === 0) return;
+
+  for (const char of livingPartyMembers) {
+    if (char.manaRegenRate > 0 && char.maxMp > 0) { // <-- lowercase "p"
+      const regenAmount = Math.round(char.maxMp * (char.manaRegenRate / 100));
+      char.mp = Math.min(char.maxMp, char.mp + regenAmount);
+
+      flashManaRegen(char.id);
+    }
+  }
+
+  updatePartyBars();
+  renderSidebar();
+}
+
 
 function applyOfFireball(item){
   if (item.id === "torchWand"){
@@ -5532,7 +5631,9 @@ function showPartyStatsMenu(returnTo) {
 
   // --- Equipment attribute totals ---
   const totals = {
-    Might: 0,
+    HP: Object.values(char.equipment || {}).reduce((sum, eq) => sum + (eq?.stats?.hp || 0), 0),
+    MP: Object.values(char.equipment || {}).reduce((sum, eq) => sum + (eq?.stats?.mp || 0), 0),
+    Might: Object.values(char.equipment || {}).reduce((sum, eq) => sum + (eq?.stats?.might || 0), 0),
     Dexterity: 0,
     Intellect: 0,
     Personality: 0,
@@ -5540,26 +5641,28 @@ function showPartyStatsMenu(returnTo) {
     Speed: 0,
     Luck: 0,
     Accuracy: 0,
-    HP: 0,
-    MP: 0,
-    stun: 0,
-    lifesteal: 0,
-    baseDmg: 0,
-    critDmg: 0,
-    spellDmg: 0,
-    evasion: 0
+    stun: recalcBonusForChar(char, "stun"),
+    lifesteal: recalcBonusForChar(char, "lifesteal"),
+    baseDmg: recalcBonusForChar(char, "baseDmg"),
+    critDmg: recalcBonusForChar(char, "critDmg"),
+    spellDmg: recalcBonusForChar(char, "spellDmg"),
+    evasion: recalcBonusForChar(char, "evasion"),
+    reflectDmg: recalcBonusForChar(char, "reflectDmg"),
+    manaRegen: recalcBonusForChar(char, "manaRegen"),
   };
 
 for (const slot in char.equipment) {
   const item = char.equipment[slot];
   if (!item) continue;
 
+  /*
   // bonuses[] are things like stun/lifesteal/etc.
   for (const b of item.stats.bonuses) {
     if (totals.hasOwnProperty(b.key)) {
       totals[b.key] += b.value;
     }
   }
+*/
 
   // flat stats directly on the item
   if (item.stats.might) {
@@ -5567,6 +5670,9 @@ for (const slot in char.equipment) {
   }
   if (item.stats.hp) {
     totals.HP += item.stats.hp;
+  }
+  if (item.stats.mp){
+    totals.MP += item.stats.mp;
   }
   if (item.stats.Dexterity) {
     totals.Dexterity += item.stats.Dexterity;
@@ -5626,6 +5732,8 @@ for (const slot in char.equipment) {
         <li>Crit Damage+: ${totals.critDmg.toFixed(2)}%</li>
         <li>Spell Damage+: ${totals.spellDmg.toFixed(2)}%</li>
         <li>Evasion+: ${totals.evasion.toFixed(2)}%</li>
+        <li>Reflect Damage: ${totals.reflectDmg.toFixed(2)}%</i>
+        <li>Mana Regen: ${totals.manaRegen.toFixed(2)}%</i>
       </ul>
     </div>
   `;
@@ -5684,25 +5792,39 @@ for (const slot in char.equipment) {
   });
 }
 
+function recalcBonusForChar(char, key) {
+  return Object.values(char.equipment || {})
+    .filter(Boolean)
+    .flatMap(eq => eq.stats?.bonuses || [])
+    .filter(bonus => bonus.key === key)
+    .reduce((sum, bonus) => sum + bonus.value, 0);
+}
+
+
 function showInventoryMenu(returnTo) {
   let currentIndex = 0; // track current character
 
+  // remove any existing inventory menu first
+  closeInventoryMenu();
+
   const menu = document.createElement("div");
+  menu.id = "inventory-menu";
   menu.className = "modal-overlay";
 
-  // Helper to format stats (same as equip menu)
+  // Helper to format stats (safe for missing fields; artifacts include description)
   function formatStats(item) {
     if (!item) return `<span class="hint">Empty</span>`;
 
-    const coreStats = Object.keys(item.stats)
-      .map(key => {
-        if (key === "bonuses") return;
-        return `${key}: +${item.stats[key]}`;
-      })
+    const stats = item.stats || {};
+    const bonuses = Array.isArray(stats.bonuses) ? stats.bonuses : [];
+
+    const coreStats = Object.keys(stats)
+      .filter(k => k !== "bonuses")
+      .map(k => `${k}: +${stats[k]}`)
       .filter(Boolean)
       .join(", ");
 
-    const bonusStats = item.stats.bonuses
+    const bonusStats = bonuses
       .map(bonus => {
         const attrDef = LOOT_ATTRIBUTES.find(a => a.key === bonus.key);
         if (attrDef?.type === "percent") {
@@ -5713,32 +5835,48 @@ function showInventoryMenu(returnTo) {
       })
       .join(", ");
 
-    return `<span class="loot-${item.tier}">
-      ${LOOT_TIERS[item.tier].name} ${item.flavorName}
-      <span class="stats">(${[coreStats, bonusStats].filter(Boolean).join(", ")})</span>
-    </span>`;
+    const tierName = LOOT_TIERS?.[item.tier]?.name || item.tier || "Item";
+    const title = `${tierName} ${item.flavorName || ""}`.trim();
+    const statsText = [coreStats, bonusStats].filter(Boolean).join(", ");
+
+    // Use block-level container so description (also a block) doesn't break layout
+    const descriptionHtml = item.tier === "artifact" && item.description
+      ? `<div class="artifact-description">${item.description}</div>`
+      : "";
+
+    return `
+      <div class="loot-item loot-${item.tier || ''}">
+        <div class="loot-title">
+          <strong>${title}</strong>
+          ${statsText ? `<span class="stats"> (${statsText})</span>` : ""}
+        </div>
+        ${descriptionHtml}
+      </div>
+    `;
   }
 
   function renderCharacter(index) {
     const char = state.party[index];
-    const classDef = CLASS_DEFS[char.classKey];
-    const displayName = char.name || classDef?.name || `Hero ${index + 1}`;
+    const classDef = CLASS_DEFS[char.classKey] || {};
+    const displayName = char.name || classDef.name || `Hero ${index + 1}`;
 
-    // Safely handle missing equipment
+    // Safely handle missing equipment map
     const equipment = char.equipment || {};
+    // Ensure we render all expected slots (optional): if you have fixed slots list, use that instead
+    const slots = Object.keys(equipment).length ? Object.keys(equipment) : ["weapon","armor","accessory"];
 
-    // Equipment list
-    const equipHtml = Object.entries(equipment)
-      .map(([slot, item]) => {
-        return `
-          <div class="inventory-row">
-            <strong class="slot">${slot}:</strong>
-            <span class="item">${formatStats(item)}</span>
+    const equipHtml = slots.map(slot => {
+      const item = equipment[slot];
+      return `
+        <div class="inventory-row" data-slot="${slot}">
+          <div class="slot-label"><strong>${slot}:</strong></div>
+          <div class="item">${formatStats(item)}</div>
+          <div class="slot-actions">
             ${item ? `<button class="btn small" data-action="unequip" data-slot="${slot}">Unequip</button>` : ""}
           </div>
-        `;
-      })
-      .join("");
+        </div>
+      `;
+    }).join("");
 
     const html = `
       <div class="character-section">
@@ -5756,20 +5894,29 @@ function showInventoryMenu(returnTo) {
       btn.addEventListener("click", () => {
         const slot = btn.getAttribute("data-slot");
         const item = char.equipment?.[slot];
-        if (item) {
-          state.pendingLoot.push(item);
-          char.equipment[slot] = null;
-          renderCharacter(currentIndex);
-          removeEquipmentStats(char, item);
-          recomputeCharacterStats(char);
-          updatePartyBars();
-          renderSidebar();
+        if (!item) return;
+
+        if (!state.pendingLoot) state.pendingLoot = [];
+        state.pendingLoot.push(item);
+
+        // Remove the equipped item (remove the key to keep slot rendering predictable)
+        if (char.equipment) {
+          delete char.equipment[slot];
         }
+
+        // Update character stats / UI
+        removeEquipmentStats(char, item);
+        recomputeCharacterStats(char);
+        updatePartyBars();
+        renderSidebar();
+
+        // Re-render this character so UI updates immediately
+        renderCharacter(currentIndex);
       });
     });
   }
 
-  // Base structure
+  // Base structure (character container will be filled by renderCharacter)
   menu.innerHTML = `
     <div class="modal-content large">
       <div class="modal-header">
@@ -5801,11 +5948,16 @@ function showInventoryMenu(returnTo) {
   });
 
   menu.querySelector("[data-action='return']").addEventListener("click", () => {
-    menu.remove();
+    closeInventoryMenu();
+    // preserve your existing flow
     showPartyStatsMenu(returnTo);
   });
-}
 
+  function closeInventoryMenu() {
+    const existing = document.getElementById("inventory-menu");
+    if (existing) existing.remove();
+  }
+}
 
 
 
@@ -6604,6 +6756,19 @@ function flashHealOnCharacter(id) {
   // Remove the class after a short delay to allow the animation to play
   setTimeout(() => {
     portrait.classList.remove("heal-flash");
+  }, 300); // Set a short delay, e.g., 300ms, to match the CSS transition duration
+}
+
+function flashManaRegen(id) {
+  const portrait = partyBarRoot.querySelector(`.portrait[data-index="${id}"]`);
+  if (!portrait) return;
+
+  // Add the class to start the flash animation
+  portrait.classList.add("regenMana-flash");
+
+  // Remove the class after a short delay to allow the animation to play
+  setTimeout(() => {
+    portrait.classList.remove("regenMana-flash");
   }, 300); // Set a short delay, e.g., 300ms, to match the CSS transition duration
 }
 
