@@ -1,16 +1,16 @@
 // Global debug configuration
 const DEBUG_CONFIG = {
-  enabled: true,         // Master switch to enable/disable debug features
+  enabled: false,         // Master switch to enable/disable debug features
   
   // Character/Level debug
-  forceStartingLevel: 25,  // Set to 0 or false to disable
+  forceStartingLevel: 1,  // Set to 0 or false to disable
   startingGold: 100000,
   currentAreaId: false, // or set to false
   
   // Loot debug
-  forceDrops: true,        // Every enemy drops loot
-  defaultDropTier: "artifact", // Force all drops to this tier (or false for normal)
-  forceArtifactId: "crownOfTheMagi", // e.g. "robinsBow" or "bloodmore"
+  forceDrops: false,        // Every enemy drops loot
+  defaultDropTier: false, // Force all drops to this tier (or false for normal)
+  forceArtifactId: false, // e.g. "robinsBow" or "bloodmore"
   
   // Attribute forcing (will guarantee these on every item)
   forceAttributes: {
@@ -7310,3 +7310,4 @@ function downloadCSV(csvString, filename) {
 
   document.body.removeChild(link); // Clean up the DOM
 }
+
