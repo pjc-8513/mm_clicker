@@ -3,14 +3,14 @@ const DEBUG_CONFIG = {
   enabled: false,         // Master switch to enable/disable debug features
   
   // Character/Level debug
-  forceStartingLevel: 1,  // Set to 0 or false to disable
+  forceStartingLevel: 25,  // Set to 0 or false to disable
   startingGold: 100000,
   currentAreaId: false, // or set to false
   
   // Loot debug
-  forceDrops: false,        // Every enemy drops loot
-  defaultDropTier: false, // Force all drops to this tier (or false for normal)
-  forceArtifactId: false, // e.g. "robinsBow" or "bloodmore"
+  forceDrops: true,        // Every enemy drops loot
+  defaultDropTier: "artifact", // Force all drops to this tier (or false for normal)
+  forceArtifactId: "assassinsBlade", // e.g. "robinsBow" or "bloodmore"
   
   // Attribute forcing (will guarantee these on every item)
   forceAttributes: {
@@ -340,7 +340,8 @@ const guideData = {
     "Block": "Chance to block 50% damage. Classes: Knight, Paladin.",
     "Intimidate": "Chance to draw attacks. Classes: Knight, Paladin.",
     "HP Pot": "Auto-use HP potion at low HP. Classes: Knight, Paladin, Archer, Monk.",
-    "MP Pot": "Auto-use MP potion at low MP. Classes: Sorcerer, Druid, Monk, Cleric."
+    "MP Pot": "Auto-use MP potion at low MP. Classes: Sorcerer, Druid, Monk, Cleric.",
+    "Disarm trap": "Lowers the chance of traps exploding on click."
   },
   "Spells": {
     "Fire Bolt": "Single target fire damage. Classes: Sorcerer, Archer.",
@@ -368,6 +369,18 @@ const guideData = {
     "Poison": "Damage over time. Green health bar.",
     "Disease": "Half healing effect; Diseased characters will not heal at the Inn. Orange health bar.",
     "Curse": "Chance to fail spells/attacks. <br> Cursed characters cannot dodge, block, or get dual wield chains. Purple health bar."
+  },
+  "Equipment Attributes": {
+    "of Fireball": "Fires a fireball every few seconds. Additional stacks increases damage of fireball.",
+    "Backstab": "Every five attacks deals bonus backstab damage. Additional stacks increases backstab damage.",
+    "Executioner": "Bonus damage to humanoid type enemies",
+    "Excommunicator": "Bonus damage to demon type enemies",
+    "Banisher": "Bonus damage to undead type enemies",
+    "Hunter's Mark": "Bonus damage to beast type enemies",
+    "Slayer": "Bonus damage to dragon type enemies",
+  },
+  "Traps": {
+    "Description": "Traps spawn in dungeons. They take 1 damage per hit and have a chance to blow up on hit. Traps will blow up when they reach the top enemy position, launching 1 piece of shrapnel for each remaining hit point. Traps can drop loot when successfully killed before detonation."
   }
 };
 
@@ -547,64 +560,64 @@ const SKILL_DEFS = {
 
 const SPELL_DEFS = {
   fireBolt: { key: "fireBolt", name: "Fire Bolt", mpCost: 6, type: "damage", cost: 100,
-    allowedClasses: ["sorcerer", "archer"], cooldown: 2000
+    allowedClasses: ["sorcerer", "archer"], cooldown: 2000, icon: "firebolt.png"
    },
   heal: { key: "heal", name: "Heal", mpCost: 8, type: "heal", cost: 100,
-    allowedClasses: ["paladin", "cleric", "druid"], cooldown: 1000
+    allowedClasses: ["paladin", "cleric", "druid"], cooldown: 1000, icon: "firebolt.png"
    },
   lightning: { key: "lightning", name: "Lightning Bolt", mpCost: 8, type: "damage", cost: 200,
-    allowedClasses: ["druid"], cooldown: 3000
+    allowedClasses: ["druid"], cooldown: 3000, icon: "lightning.png"
    },
   shield: { key: "shield", name: "Magic Shield", mpCost: 10, type: "buff", cost: 150,
-    allowedClasses: ["sorcerer", "cleric", "paladin"], cooldown: 1000
+    allowedClasses: ["sorcerer", "cleric", "paladin"], cooldown: 1000, icon: "firebolt.png"
    },
   cure: { key: "cure", name: "Cure All", mpCost: 20, type: "heal", cost: 250,
-    allowedClasses: ["cleric", "druid"], cooldown: 4000
+    allowedClasses: ["cleric", "druid"], cooldown: 4000, icon: "firebolt.png"
    },
   meteor: { key: "meteor", name: "Meteor", mpCost: 15, type: "damage", cost: 400,
-    allowedClasses: ["sorcerer"], cooldown: 9000
+    allowedClasses: ["sorcerer"], cooldown: 9000, icon: "meteor.png"
    },
   destroyUndead: { key: "destroyUndead", name: "Destroy Undead", mpCost: 15, type: "damage", cost: 400,
-    allowedClasses: ["cleric", "paladin"], cooldown: 9000
+    allowedClasses: ["cleric", "paladin"], cooldown: 9000, icon: "firebolt.png"
    },
   bless: { key: "bless", name: "Bless", mpCost: 8, type: "buff", cost: 180,
-    allowedClasses: ["cleric", "paladin"], cooldown: 3000
+    allowedClasses: ["cleric", "paladin"], cooldown: 3000, icon: "firebolt.png"
    },
    quickstep: { key: "quickstep", name: "Quickstep", mpCost: 8, type: "buff", cost: 180,
-    allowedClasses: ["archer", "monk"], cooldown: 3000
+    allowedClasses: ["archer", "monk"], cooldown: 3000, icon: "firebolt.png"
    },
    touchOfDeath: { key: "touchOfDeath", name: "Touch of Death", mpCost: 20, type: "damage", cost: 500,
-    allowedClasses: ["sorcerer"], cooldown: 7000
+    allowedClasses: ["sorcerer"], cooldown: 7000, icon: "firebolt.png"
     },
    massDistortion: { key: "massDistortion", name: "Mass Distortion", mpCost: 10, type: "damage", cost: 500,
-    allowedClasses: ["druid"], cooldown: 5000
+    allowedClasses: ["druid"], cooldown: 5000, icon: "firebolt.png"
    },
    regeneration: { key: "regeneration", name: "Regeneration", mpCost: 25, type: "buff", cost: 400,
-    allowedClasses: ["cleric", "monk"], cooldown: 20000
+    allowedClasses: ["cleric", "monk"], cooldown: 20000, icon: "firebolt.png"
    },
    revive: { key: "revive", name: "Revive", mpCost: 40, type: "heal", cost: 200,
-    allowedClasses: ["cleric", "monk", "paladin"], cooldown: 4000
+    allowedClasses: ["cleric", "monk", "paladin"], cooldown: 4000, icon: "firebolt.png"
    },
    remedy: { key: "remedy", name: "Remedy", mpCost: 15, type: "heal", cost: 100,
-    allowedClasses: ["cleric", "monk", "paladin"], cooldown: 2000
+    allowedClasses: ["cleric", "monk", "paladin"], cooldown: 2000, icon: "firebolt.png"
    },
     weakSpot: { key: "weakSpot", name: "Weak Spot", mpCost: 15, type: "buff", cost: 500,
-    allowedClasses: ["monk"], cooldown: 15000
+    allowedClasses: ["monk"], cooldown: 15000, icon: "firebolt.png"
    },
     shrapnel: { key: "shrapnel", name: "Shrapnel", mpCost: 35, type: "damage", cost: 1000,
-    allowedClasses: ["sorcerer"], cooldown: 6000
+    allowedClasses: ["sorcerer"], cooldown: 6000, icon: "firebolt.png"
    },
     volley: { key: "volley", name: "Volley", mpCost: 10, type: "damage", cost: 500,
-    allowedClasses: ["archer"], cooldown: 4000
+    allowedClasses: ["archer"], cooldown: 4000, icon: "firebolt.png"
    },
     haste: { key: "haste", name: "Haste", mpCost: 15, type: "buff", cost: 100,
-    allowedClasses: ["monk"], cooldown: 15000
+    allowedClasses: ["monk"], cooldown: 15000, icon: "firebolt.png"
    },
     preservation: { key: "preservation", name: "Preservation", mpCost: 35, type: "buff", cost: 1000,
-    allowedClasses: ["monk"], cooldown: 60000
+    allowedClasses: ["monk"], cooldown: 60000, icon: "firebolt.png"
    },
     sparks: { key: "sparks", name: "Sparks", mpCost: 12, type: "damage", cost: 400,
-    allowedClasses: ["druid"], cooldown: 3500
+    allowedClasses: ["druid"], cooldown: 3500, icon: "firebolt.png"
   },
 };
 
@@ -640,6 +653,7 @@ const state = {
   enemyAttackTimerId: null,
   autoAttackTimerId: null,
   cooldownUiTimerId: null,
+  refreshSpellOverlayId: null,
   currentAreaId: "newSorpigal",
   guaranteedCrits: 0, // Tracks remaining guaranteed critical hits from Bless
   spellCoolDowns: {},
@@ -652,6 +666,7 @@ const state = {
   fireballInterval: null,
   manaRegenInterval: null,
   enemyAttackTimers: [],
+  specialAbilityTimer: [],
   pendingLoot: [], // list of loot boxes waiting to be opened
   foundArtifacts: new Set(),
   backstabCount: 0, // tracks backstab procs for weapons with attribute
@@ -697,7 +712,7 @@ document.addEventListener('keydown', (e) => {
     const spell = keySpellMap[key];
     const isHeal = (spell === "heal"); // or expand if multiple heal spells
     tryCastSpell(spell, isHeal ? "heal" : null);
-    renderSidebar(); // keep rendering sidebar after casting, as in your original
+    // renderSidebar(); // keep rendering sidebar after casting, as in your original
     e.preventDefault();
   }
 });
@@ -998,10 +1013,20 @@ const ENEMY_TEMPLATES = {
     type: "humanoid",
     tier: 1,
     speed: 1.5,
+    maxMp: 20,
     hpFormula: (level) => Math.floor(10 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 4),
     attackFormula: (level) => Math.floor(3 + level * 1.2),
     goldFormula: (level) => Math.floor(10 + level * 2),
     xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1)),
+    // Special abilities (healer)
+    /*
+    specialAbilities: [{
+      type: "heal",
+      amount: 0.2,     // heals for 20% of target's max HP
+      interval: 3000,   // heals every 3 seconds
+      cost: 10 
+    }]
+    */
     //isAOE: true,
     /*
     statusEffect: {
@@ -1145,7 +1170,16 @@ const ENEMY_TEMPLATES = {
     hpFormula: (level) => Math.floor(25 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
     attackFormula: (level) => Math.floor(8 + level * 1.4),
     goldFormula: (level) => Math.floor(10 + level * 1.5),
-    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1))
+    xpFormula: (level) => Math.floor(20 * Math.pow(1.13, level - 1)),
+    maxMp: 30,
+
+    // Special abilities (healer)
+    specialAbilities: [{
+      type: "heal",
+      amount: 0.3,     // heals for 30% of target's max HP
+      interval: 3000,   // heals every 3 seconds
+      cost: 10 
+    }]
   },
 
   hugeSpider: {
@@ -1185,22 +1219,22 @@ const ENEMY_TEMPLATES = {
   },
 
     skeletonKnight: {
-    id: "skeletonKnight",
-    baseName: "Skeleton Knight",
-    type: "undead",
-    tier: 2,
-    speed: 3,
-    lootTier: 2,
-    hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
-    attackFormula: (level) => Math.floor(6 + level * 1.5),
-    goldFormula: (level) => Math.floor(15 + level * 2.5),
-    xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1)),
-    statusEffect: {
-      curse: {
-      key: 'curse',
-      chance: 0.17
+      id: "skeletonKnight",
+      baseName: "Skeleton Knight",
+      type: "undead",
+      tier: 2,
+      speed: 3,
+      lootTier: 2,
+      hpFormula: (level) => Math.floor(35 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5),
+      attackFormula: (level) => Math.floor(6 + level * 1.5),
+      goldFormula: (level) => Math.floor(15 + level * 2.5),
+      xpFormula: (level) => Math.floor(25 * Math.pow(1.13, level - 1)),
+      statusEffect: {
+        curse: {
+        key: 'curse',
+        chance: 0.17
+        }
       }
-    }
     //variants: ["Warrior", "Archer", "Mage"]
   },
 
@@ -1574,19 +1608,26 @@ const ENEMY_TEMPLATES = {
     //variants: ["Ancient", "Lich King", "Death Knight"]
   },
   goblinKing: {
-  id: "goblinKing",
-  baseName: "Goblin King",
-  type: "humanoid",
-  tier: "boss",
-  isBoss: true,
-  lootTier: 4,
-  hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
-  attackFormula: (level) => Math.floor(12 + level * 2.5),
-  goldFormula: (level) => Math.floor(60 + level * 3),
-  xpFormula: (level) => Math.floor(30 * Math.pow(1.13, level - 1)),
-  variants: ["Warlord", "Tyrant", "Destroyer"],
-  // Special abilities
-  specialAbilities: ["doubleDamageChance"]
+    id: "goblinKing",
+    baseName: "Goblin King",
+    type: "humanoid",
+    tier: "boss",
+    isBoss: true,
+    lootTier: 4,
+    maxMp: 40,
+    hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
+    attackFormula: (level) => Math.floor(12 + level * 2.5),
+    goldFormula: (level) => Math.floor(60 + level * 3),
+    xpFormula: (level) => Math.floor(30 * Math.pow(1.13, level - 1)),
+    variants: ["Warlord", "Tyrant", "Destroyer"],
+    // Special abilities
+    specialAbilities: [{
+      type: "summon",
+      summonId: "goblin",   // what to summon
+      interval: 7500,             // every 7.5s
+      max: 2,                      // maximum alive
+      cost: 20
+    }]
 },
   priestOfBaa: {
     id: "priestOfBaa",
@@ -1619,6 +1660,7 @@ const ENEMY_TEMPLATES = {
     isMagic: true,
     isAoe: true,
     lootTier: 4,
+    maxMp: 60,
     hpFormula: (level) => Math.floor((20 + level * (Math.random() * 2 + 25) + Math.pow(level, 1.2) * 5) * 2),
     attackFormula: (level) => Math.floor(8 + level * 2.5),
     goldFormula: (level) => Math.floor(60 + level * 3),
@@ -1629,9 +1671,15 @@ const ENEMY_TEMPLATES = {
       key: 'curse',
       chance: 0.40
       }
-    }
+    },
     // Special abilities
-    
+    specialAbilities: [{
+      type: "summon",
+      summonId: "skeletonLord",   // what to summon
+      interval: 7500,             // every 7.5s
+      max: 2,                      // maximum alive
+      cost: 20
+    }]
   },
   longFang: {
     id: "longFang",
@@ -1763,7 +1811,8 @@ function createCharacter(id, classKey) {
     knownSpells: [...CLASS_STARTING_SPELLS[classKey]],
     quickstepActive: false,
     image: classDef.image,
-    statusEffect: []
+    statusEffect: [],
+    spellBar: [...CLASS_STARTING_SPELLS[classKey]]
   };
 }
 
@@ -1990,6 +2039,7 @@ function startGame() {
   gameScreen.classList.remove("hidden");
   initializeDebugMode();
   renderPartyBar();
+  renderSpellOverlay(state.party[0]);
   setupWaveNew(1);
   beginEnemyAttacksWithVariants();
   beginAutoAttacks();
@@ -2176,6 +2226,65 @@ function selectEnemyVariant() {
   // Fallback to warrior if something goes wrong
   return ENEMY_VARIANTS.warrior;
 }
+
+function renderSpellOverlay(character = state.party[state.selectedIndex]) {
+  const spellBar = character.spellBar || [];
+  console.log("Rendering spell overlay for character:", character.id, "with spells:", spellBar);
+
+  // Clear existing overlay
+  const existingOverlay = document.querySelector(".spell-overlay");
+  if (existingOverlay) {
+    existingOverlay.remove();
+  } 
+
+  const now = Date.now();
+
+  const overlayHtml = `
+    <div class="spell-overlay">
+      ${spellBar.map(key => {
+        const s = SPELL_DEFS[key];
+        const readyAt = state.spellCoolDowns[character.id]?.[key] || 0;
+        const onCooldown = now < readyAt;
+        const disabled = character.mp < s.mpCost || onCooldown ? "disabled" : "";
+
+        // remaining cooldown (seconds, with two decimal places)
+        let cooldownText = "";
+        if (onCooldown) {
+          const remainingMs = readyAt - now;
+          const remainingSec = remainingMs / 1000;
+          cooldownText = `<span class="cooldown-text">${remainingSec.toFixed(2)}</span>`;
+        }
+
+        return `
+          <button class="spell-btn ${disabled}" 
+                  data-action="cast-spell" 
+                  data-spell="${s.key}">
+            <img src="images/${s.icon}" alt="${s.name}" />
+            ${cooldownText}
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  // Insert into game container
+  const container = document.querySelector("#party-bar"); // adjust selector if needed
+  container.insertAdjacentHTML("beforeend", overlayHtml);
+
+    // Attach event listeners for spells
+  const overlay = document.querySelector(".spell-overlay");
+  overlay.querySelectorAll("[data-action='cast-spell']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const spellKey = btn.dataset.spell;
+      castSpell(character, spellKey);
+
+      // optional: re-render overlay to update cooldowns, disabled states, etc.
+      renderSpellOverlay(character);
+    });
+  });
+}
+
+
 
 // Wave / Multiple enemies
 function setupWaveNew(waveNumber, areaId = null) {
@@ -2452,6 +2561,52 @@ livingEnemies.forEach((enemy, displayIndex) => {
   });
 }
 
+function updateEnemyListWithVariants() {
+  state.enemies.forEach((enemy, originalIndex) => {
+    const row = enemyListEl.querySelector(`.enemy-row[data-index="${originalIndex}"]`);
+    if (!row) return; // enemy might be dead or removed
+
+    // Update HP bar fill and text
+    const hpBarFill = row.querySelector(".bar.hp .fill");
+    const hpBarText = row.querySelector(".bar.hp .bar-text");
+    if (hpBarFill) hpBarFill.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+    if (hpBarText) hpBarText.textContent = `${enemy.hp} / ${enemy.maxHp}`;
+
+    // Update focus button
+    const focusBtn = row.querySelector("[data-action='focus']");
+    if (focusBtn) {
+      if (state.focusedEnemyIndex === originalIndex) {
+        focusBtn.textContent = "Focused";
+        focusBtn.classList.add("focused");
+      } else {
+        focusBtn.textContent = "Focus";
+        focusBtn.classList.remove("focused");
+      }
+    }
+
+    // TODO: update other dynamic things (like trap chance, variant badge)
+        // ✅ Update trap chance dynamically
+    if (enemy.isTrap) {
+      const chanceSpan = row.querySelector(".trap-chance");
+      if (chanceSpan) {
+        const chance = getTrapExplosionChance().toFixed(1);
+        chanceSpan.textContent = `(~${chance}% per hit)`;
+      }
+    }
+  
+  });
+
+  // Remove rows for dead enemies
+  enemyListEl.querySelectorAll(".enemy-row").forEach((row) => {
+    const idx = Number(row.getAttribute("data-index"));
+    const enemy = state.enemies[idx];
+    if (!enemy || enemy.hp <= 0) {
+      row.remove();
+    }
+  });
+}
+
+
 // handle trap logic
 
 function checkTrapMovement() {
@@ -2478,6 +2633,7 @@ function checkTrapMovement() {
     }
   }
 }
+
 
 
 
@@ -3258,7 +3414,11 @@ function generateEnemyFromTemplateWithVariant(templateId, level, forceVariant = 
     critChance: variantCopy.critChance,
     isStunnable: templateCopy.isStunnable !== false, // default true
     effects: [], // for ongoing effects like stun/burn/poison
-    lootTier: template.lootTier || 0
+    lootTier: template.lootTier || 0,
+    specialAbilities: template.specialAbilities || null,
+
+    maxMp: templateCopy.maxMp || 100,
+    mp: templateCopy.maxMp || 100,
   };
 }
 
@@ -3342,6 +3502,7 @@ function manaRegen() {
 
   updatePartyBars();
   renderSidebar();
+  renderSpellOverlay();
 }
 
 
@@ -4050,7 +4211,7 @@ function accuracyCheck(enemy){
 
 function onEnemyDamaged(index) {
   // Update the UI immediately for the damaged enemy
-  renderEnemyListWithVariants();
+  updateEnemyListWithVariants();
 
   // Apply animation after the DOM is updated
   const enemyRow = document.querySelector(`.enemy-row[data-index="${index}"] .hp`);
@@ -4143,8 +4304,33 @@ function onEnemyDamaged(index) {
       c.xp += finalXp;
     });
 
+    // check for level ups
+    let leveledUp = false;
+      livingMembers.forEach((member) => {
+        while (member.xp >= member.nextLevelXp) {
+          member.xp -= member.nextLevelXp;
+          member.level += 1;
+          member.nextLevelXp = getNextLevelXp(member.level);
+          applyLevelGains(member);
+          member.hp = member.maxHp;
+          member.mp = member.maxMp;
+          leveledUp = true;
+        }
+      });
+
+      updatePartyBars();
+      //renderSidebar();
+      if (leveledUp) soundEffects.play('level');
+      
+      // If this was the last dead character, restart auto attacks
+      if (getLivingPartyMembers().length === 1 && !state.autoAttackTimerId) {
+        beginAutoAttacks();
+      }
+    
+
     updatePartyBars();
     renderSidebar();
+    renderSpellOverlay();
     checkTrapMovement(); // see if a trap is at the top of the enemy list
 
     if (state.focusedEnemyIndex === index) {
@@ -4314,7 +4500,11 @@ function beginEnemyAttacksWithVariants() {
 */
 function beginEnemyAttacksWithVariants() {
   stopEnemyAttacks(); // clear old timers
+  renderSpellOverlay(); // ensure spell overlay is current
 
+  // make sure menus are closed
+  const existingModals = document.querySelectorAll('.modal-overlay');
+  existingModals.forEach(modal => modal.remove());
   state.enemyAttackTimers = [];
 
   const livingEnemies = state.enemies.filter(e => e.hp > 0);
@@ -4323,6 +4513,12 @@ function beginEnemyAttacksWithVariants() {
   for (const enemy of livingEnemies) {
     scheduleEnemyAttack(enemy);
   }
+
+  // start ability processor
+    state.specialAbilityTimer = setInterval(() => {
+    processSpecialAbilities();
+  }, 500);
+
 }
 
 function scheduleEnemyAttack(enemy) {
@@ -4428,6 +4624,7 @@ function performEnemyAttack(instanceId) {
   processStatusEffects();
   updatePartyBars();
   renderSidebar();
+  renderSpellOverlay();
 
   if (getLivingPartyMembers().length === 0) {
     stopEnemyAttacks();
@@ -4441,6 +4638,12 @@ function stopEnemyAttacks() {
     for (const id of state.enemyAttackTimers) clearTimeout(id);
   }
   state.enemyAttackTimers = [];
+
+  // clear ability processor timer
+  if (state.specialAbilityTimer) {
+    clearInterval(state.specialAbilityTimer);
+    state.specialAbilityTimer = null;
+  }
 }
 
 
@@ -4486,6 +4689,110 @@ function applyEnemyStatusEffects(enemy, target) {
 
 }
 
+// Handle enemy special abilities
+function processSpecialAbilities() {
+  const livingMembers = getLivingPartyMembers();
+  if (livingMembers.length === 0) {
+    return;
+  }
+
+  const now = Date.now();
+  let healCastThisTick = false;
+
+  state.enemies.forEach(enemy => {
+    if (!enemy.hp > 0 || !enemy.specialAbilities) return;
+      //    console.log('[Summon Enemy] Summon');
+          enemy.specialAbilities.forEach(ability => {
+            if (ability.type === "summon") {
+          if (!ability._lastUsed) {
+          // ✅ Start on cooldown when spawned
+          ability._lastUsed = now;
+        }
+
+        if (now - ability._lastUsed >= ability.interval) {
+          console.log('[summon]');
+          // 50% chance to actually summon
+          if (Math.random() < 0.8 && enemy.mp >= ability.cost) {
+            console.log('[summon] perform');
+            // Perform summon
+            const existingSummons = state.enemies.filter(
+              e => e.summonedBy === enemy.instanceId && e.id === ability.summonId && e.hp > 0
+            );
+
+          if (existingSummons.length < ability.max) {
+            summonEnemy(enemy, ability.summonId);
+            ability._lastUsed = now;
+          }
+
+            enemy.mp -= ability.cost;
+            ability._lastUsed = now;
+          } else {
+            // ✅ No summon this time, but still reset cooldown
+            ability._lastUsed = now;
+          }
+        }
+
+      }
+        else if (ability.type === "heal" && !healCastThisTick) {
+          if (!ability._lastUsed) ability._lastUsed = 0;
+
+          if (now - ability._lastUsed >= ability.interval) {
+            // pick an ally that needs healing
+            if (enemy.mp >= ability.cost) {
+              const injuredAllies = state.enemies.filter(
+                e => e.hp > 0 && e.hp < e.maxHp * 0.25 && e.instanceId !== enemy.instanceId && e.type !== "trap"
+              );
+            
+            if (injuredAllies.length > 0) {
+              const target = injuredAllies[Math.floor(Math.random() * injuredAllies.length)];
+              const healAmount = Math.floor(target.maxHp * ability.amount);
+              target.hp = Math.min(target.maxHp, target.hp + healAmount);
+                        
+              enemy.mp -= ability.cost;
+              
+              ability._lastUsed = now;
+              healCastThisTick = true;
+              updateEnemyListWithVariants();
+              requestAnimationFrame(() => {
+                flashHealOnEnemy(target.instanceId);
+              });
+            }
+          } else return;
+        }
+      }
+    });
+  });
+}
+
+function summonEnemy(summoner, summonId) {
+  const level = state.enemyLevel; // scale with current wave level (or tweak)
+  const summoned = generateEnemyFromTemplateWithVariant(summonId, level);
+
+  // Attach metadata for tracking
+  summoned.summonedBy = summoner.instanceId;
+
+  state.enemies.push(summoned);
+  renderEnemyListWithVariants();
+  beginEnemyAttacksWithVariants();
+}
+
+function flashHealOnEnemy(instanceId) {
+  const index = state.enemies.findIndex(e => e.instanceId === instanceId);
+  const hpBar = enemyListEl.querySelector(`.enemy-row[data-index="${index}"] .hp`);
+  if (!hpBar) return;
+  
+  soundEffects.play('heal');
+  hpBar.classList.remove("heal-flash");
+  hpBar.offsetHeight; // force reflow
+  hpBar.classList.add("heal-flash");
+
+  hpBar.addEventListener("animationend", () => {
+    hpBar.classList.remove("heal-flash");
+  }, { once: true });
+}
+
+
+
 
 function processStatusEffects() {
   const livingMembers = getLivingPartyMembers();
@@ -4513,6 +4820,19 @@ function processStatusEffects() {
     }
   }
 }
+
+function showEnemyFloatingMessage(instanceId, text, type) {
+  const row = document.querySelector(`.enemy-row[data-index="${state.enemies.findIndex(e => e.instanceId === instanceId)}"]`);
+  if (!row) return;
+
+  const msg = document.createElement("div");
+  msg.className = `floating-msg ${type}`;
+  msg.textContent = text;
+  row.appendChild(msg);
+
+  setTimeout(() => msg.remove(), 1000);
+}
+
 
 function getMostIntimidatingMember(livingMembers) {
   const intimidators = livingMembers.filter(member => member.skills.intimidate > 0);
@@ -4598,8 +4918,15 @@ function beginAutoAttacks() {
   const livingMembers = getLivingPartyMembers();
   if (livingMembers.length === 0) {
     // No living members - can't auto attack
+    if (state.refreshSpellOverlayId !== null) {
+      clearInterval(state.refreshSpellOverlayId);
+      state.refreshSpellOverlayId = null;
+    }
     return;
   }
+  state.refreshSpellOverlayId = setInterval(() => {
+    renderSpellOverlay();
+  }, 100);
   
   const speed = computePartySpeed();
   //console.log(speed);
@@ -4656,6 +4983,10 @@ function stopAutoAttacks() {
   if (state.autoAttackTimerId) {
     clearInterval(state.autoAttackTimerId);
     state.autoAttackTimerId = null;
+  }
+  if (state.refreshSpellOverlayId !== null) {
+    clearInterval(state.refreshSpellOverlayId);
+    state.refreshSpellOverlayId = null;
   }
 }
 
@@ -4976,6 +5307,7 @@ function applyDungeonReward(reward) {
   // Update UI
   updatePartyBars();
   renderSidebar();
+  renderSpellOverlay();
 }
 
 
@@ -5594,6 +5926,7 @@ function closeSpellShopMenu() {
 function buySpellForCharacter(characterIndex, spellKey) {
   const character = state.party[characterIndex];
   const spell = SPELL_DEFS[spellKey];
+  if (!character.spellBar) character.spellBar = [];
   
   if (!spell || !spell.allowedClasses.includes(character.classKey)) {
     console.error(`Spell ${spellKey} not allowed for class ${character.classKey}`);
@@ -5604,6 +5937,12 @@ function buySpellForCharacter(characterIndex, spellKey) {
     state.gold -= spell.cost;
     goldEl.textContent = String(state.gold);
     character.knownSpells.push(spellKey);
+    // auto-add to spell bar if there's room
+    if (character.spellBar.length < 5 && !character.spellBar.includes(spellKey)) {
+      character.spellBar.push(spellKey);
+      renderSpellOverlay();
+    }
+  
     renderSidebar();
     return true;
   }
@@ -5753,6 +6092,7 @@ for (const slot in char.equipment) {
         <button class="btn" data-action="prev">Previous</button>
         <button class="btn" data-action="next">Next</button>
         <button class="btn" data-action="inventory">Inventory</button>
+        <button class="btn" data-action="spellbook">Spellbook</button>
         <button class="btn" data-action="return">Return</button>
       </div>
     </div>
@@ -5789,6 +6129,11 @@ for (const slot in char.equipment) {
   
     menu.remove();
     showInventoryMenu(returnTo); // go to inventory
+  });
+
+    menu.querySelector("[data-action='spellbook']").addEventListener("click", () => {
+      menu.remove();
+      showSpellBookMenu(returnTo, currentIndex);
   });
 }
 
@@ -5959,6 +6304,66 @@ function showInventoryMenu(returnTo) {
   }
 }
 
+
+function showSpellBookMenu(returnTo, characterIndex) {
+  const character = state.party[characterIndex];
+  const spellBar = character.spellBar || [];
+
+
+  const menu = document.createElement("div");
+  menu.className = "modal-overlay";
+
+  const spellRows = character.knownSpells.map((key) => {
+    const s = SPELL_DEFS[key];
+    const checked = character.spellBar.includes(key) ? "checked" : "";
+    const alreadySelected = spellBar.includes(key);
+    const disableCheckbox = spellBar.length >= 5 && !alreadySelected ? "disabled" : "";
+
+    return `
+      <label class="spell-row">
+        <input type="checkbox" value="${key}" ${checked} ${disableCheckbox}>
+        <img src="./images/${s.icon}" alt="${s.name}" class="spell-icon"/>
+        <span>${s.name}</span>
+      </label>
+    `;
+  }).join("");
+
+  menu.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>${character.name || "Hero"}'s Spellbook</h2>
+      </div>
+      <div class="spell-list">
+        ${spellRows || "<div class='hint'>No spells known</div>"}
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-action="return">Return</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(menu);
+
+  // --- Checkbox events ---
+  menu.querySelectorAll("input[type='checkbox']").forEach((box) => {
+    box.addEventListener("change", () => {
+      const spellKey = box.getAttribute("data-spell");
+      if (box.checked) {
+        if (!character.spellBar.includes(spellKey)) {
+          character.spellBar.push(spellKey);
+        }
+      } else {
+        character.spellBar = character.spellBar.filter((s) => s !== spellKey);
+      }
+    });
+  });
+
+  // --- Return button ---
+  menu.querySelector("[data-action='return']").addEventListener("click", () => {
+    menu.remove();
+    showPartyStatsMenu(returnTo); // back to stats
+  });
+}
 
 
 // Controls
@@ -6141,10 +6546,18 @@ function getNextLevelXp(level) {
 
 function selectCharacter(index) {
   state.selectedIndex = index;
+  renderSpellOverlay();
   renderSidebar();
 }
 
 function renderSidebar() {
+  // Skip rendering on mobile
+  if (window.innerWidth <= 768) {
+    const sidebarEl = document.getElementById("sidebar");
+    if (sidebarEl) sidebarEl.innerHTML = ""; // clear it
+    return;
+  }
+
   const character = state.party[state.selectedIndex] || state.party[0];
   if (!character) return;
   
@@ -6267,6 +6680,7 @@ function renderSidebar() {
         const spellKey = btn.getAttribute("data-spell");
         castSpell(character, spellKey);
         renderSidebar();
+        renderSpellOverlay();
         updatePartyBars();
         
         // If we just revived someone, restart systems if needed
@@ -7069,6 +7483,7 @@ function restartFromAreaBeginning() {
   // Update UI
   updatePartyBars();
   renderSidebar();
+  renderSpellOverlay();
   
   console.log(`Restarted at ${AREAS[state.currentAreaId]?.name || 'current area'}, Wave 1`);
 }
@@ -7310,4 +7725,3 @@ function downloadCSV(csvString, filename) {
 
   document.body.removeChild(link); // Clean up the DOM
 }
-
